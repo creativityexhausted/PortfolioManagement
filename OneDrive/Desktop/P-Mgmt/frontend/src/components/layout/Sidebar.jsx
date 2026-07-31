@@ -6,6 +6,7 @@ import {
   ClipboardList,
   Gauge,
   Landmark,
+  LineChart,
   Menu,
   MessageSquare,
   Newspaper,
@@ -33,7 +34,8 @@ export const Sidebar = ({
       { to: "/holdings", label: "Holdings", icon: ChartNoAxesCombined },
       { to: "/transactions", label: "Transactions", icon: ClipboardList },
       { to: "/watchlist", label: "Watchlist", icon: Star },
-      { to: "/market", label: "Market", icon: Newspaper },
+      { to: "/market", label: "Market", icon: LineChart },
+      { to: "/news", label: "News", icon: Newspaper },
       { to: "/settings", label: "Settings", icon: Settings },
     ],
     [],
@@ -59,7 +61,7 @@ export const Sidebar = ({
             animate={{ x: 0, opacity: 1 }}
             exit={{ x: -40, opacity: 0 }}
             transition={{ duration: 0.25 }}
-            className="fixed inset-y-0 left-0 z-40 w-[20rem] border-r border-white/10 bg-slate-950/90 backdrop-blur-xl lg:static lg:z-10"
+            className="pm-surface fixed inset-y-0 left-0 z-40 w-[20rem] border-r border-white/10 bg-slate-950/90 backdrop-blur-xl lg:static lg:z-10"
           >
             <div className="flex h-full flex-col gap-4 p-4">
               <div className="flex items-center justify-between">
@@ -80,7 +82,7 @@ export const Sidebar = ({
               <button
                 type="button"
                 onClick={onOpenAssistant}
-                className="group flex items-center justify-center gap-2 rounded-xl bg-gradient-to-r from-cyan-500 to-indigo-500 px-4 py-2 text-sm font-medium text-white shadow-lg shadow-cyan-900/30 transition hover:shadow-cyan-800/60"
+                className="group flex items-center justify-center gap-2 rounded-xl bg-gradient-to-r from-emerald-400 to-emerald-500 px-4 py-2 text-sm font-medium text-emerald-950 shadow-lg shadow-emerald-900/30 transition hover:shadow-emerald-800/60"
               >
                 <Bot className="h-4 w-4" />
                 Ask AI Assistant

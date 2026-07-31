@@ -2,11 +2,11 @@ import { motion } from "framer-motion";
 import { PieChart, Pie, Cell, ResponsiveContainer, Tooltip, LineChart, CartesianGrid, XAxis, YAxis, Line } from "recharts";
 import { classBySign, formatCurrency, formatDateTime } from "../../utils/formatters";
 
-const chartPalette = ["#38bdf8", "#6366f1", "#10b981", "#f59e0b", "#f43f5e", "#a78bfa"];
+const chartPalette = ["#4be277", "#22c55e", "#b9c7e0", "#3c4a5e", "#ffb4ab", "#dae2fd"];
 
 export const InsightsPanel = ({ insights, loading }) => {
   return (
-    <aside className="hidden w-[22rem] shrink-0 border-l border-white/10 bg-slate-950/70 p-4 xl:block">
+    <aside className="pm-surface hidden w-[22rem] shrink-0 border-l border-white/10 bg-slate-950/70 p-4 xl:block">
       <div className="space-y-4">
         <h3 className="text-sm font-semibold text-slate-100">Portfolio Insights</h3>
 
@@ -53,7 +53,7 @@ export const InsightsPanel = ({ insights, loading }) => {
                 <div className="h-40">
                   <ResponsiveContainer width="100%" height="100%">
                     <LineChart data={insights.timeline}>
-                      <CartesianGrid stroke="#334155" strokeDasharray="3 3" />
+                      <CartesianGrid stroke="#3d4a3d" strokeDasharray="3 3" />
                       <XAxis
                         dataKey="date"
                         stroke="#94a3b8"
@@ -61,7 +61,7 @@ export const InsightsPanel = ({ insights, loading }) => {
                       />
                       <YAxis stroke="#94a3b8" tickFormatter={(value) => `$${value}`} />
                       <Tooltip labelFormatter={(value) => formatDateTime(value)} formatter={(val) => formatCurrency(val)} />
-                      <Line type="monotone" dataKey="value" stroke="#38bdf8" strokeWidth={2} dot={false} />
+                      <Line type="monotone" dataKey="value" stroke="#4be277" strokeWidth={2} dot={false} />
                     </LineChart>
                   </ResponsiveContainer>
                 </div>

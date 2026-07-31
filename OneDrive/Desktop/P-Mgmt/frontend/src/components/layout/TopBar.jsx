@@ -12,7 +12,7 @@ export const TopBar = ({
   theme,
   onThemeToggle,
 }) => (
-  <header className="sticky top-0 z-20 border-b border-white/10 bg-slate-950/70 px-4 py-3 backdrop-blur-xl">
+  <header className="pm-surface sticky top-0 z-20 border-b border-white/10 bg-slate-950/70 px-4 py-3 backdrop-blur-xl">
     <div className="flex flex-wrap items-center justify-between gap-3">
       <div className="flex items-center gap-3">
         <button
@@ -24,7 +24,7 @@ export const TopBar = ({
           <LayoutPanelLeft className="h-4 w-4" />
         </button>
         <div>
-          <p className="text-[11px] uppercase tracking-[0.25em] text-cyan-300/70">Portfolio Intelligence</p>
+          <p className="text-[11px] uppercase tracking-[0.25em] text-emerald-300/70">Portfolio Intelligence</p>
           <p className="text-sm font-medium text-slate-100">{sectionTitle} | {username || "Investor"}</p>
         </div>
       </div>
