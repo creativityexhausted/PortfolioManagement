@@ -207,4 +207,24 @@ public final class ApiDtos {
             String source
     ) {
     }
+
+    @Schema(description = "Portfolio assistant chat request")
+    public record ChatAssistantRequest(
+            @Schema(description = "User message for the assistant", example = "Which holdings dropped the most this week?", requiredMode = Schema.RequiredMode.REQUIRED)
+            @NotBlank @Size(max = 1000) String message,
+            @Schema(description = "Optional portfolio ID filter", example = "1")
+            Long portfolioId
+    ) {
+    }
+
+    @Schema(description = "Portfolio assistant chat response")
+    public record ChatAssistantResponse(
+            @Schema(description = "Assistant answer in plain language", example = "Your largest decline is in TSLA, down 4.2% from your average buy price.")
+            String answer,
+            @Schema(description = "Model used to generate the answer", example = "llama-3.1-8b-instant")
+            String model,
+            @Schema(description = "Response generation timestamp", example = "2026-07-31T10:15:00")
+            LocalDateTime generatedAt
+    ) {
+    }
 }

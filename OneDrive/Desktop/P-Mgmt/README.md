@@ -21,6 +21,8 @@ $env:DB_USERNAME="root"
 $env:DB_PASSWORD="your-password"
 $env:NEWS_API_KEY="your-newsapi-key"
 $env:JWT_SECRET="a-base64-encoded-secret-containing-at-least-32-random-bytes"
+$env:GROQ_API_KEY="your-groq-api-key"
+$env:GROQ_MODEL="llama-3.1-8b-instant"
 ```
 
 The MySQL database itself must already exist. Hibernate creates and updates its tables.
@@ -68,6 +70,7 @@ Authorization: Bearer <token>
 | Live quote | `GET /api/stocks/{symbol}` |
 | News cache | `GET /api/news` |
 | Refresh news | `POST /api/news/refresh` |
+| Portfolio assistant | `POST /api/chat/portfolio-assistant` |
 
 Holding, transaction, and watchlist list endpoints accept an optional `portfolioId` query
 parameter. Their create/update bodies include a required `portfolioId`.
@@ -121,6 +124,45 @@ Example watchlist entry:
 Prices refresh every five minutes and news every fifteen minutes by default. All intervals
 and initial delays can be overridden using the environment variables documented in
 `application.properties`.
+
+## Portfolio Assistant (Groq)
+
+The portfolio assistant is designed to:
+
+- answer portfolio performance questions using your holdings data
+- explain terms and performance in beginner-friendly language
+- refuse buy/sell recommendations for specific stocks
+
+Example request:
+
+```http
+POST /api/chat/portfolio-assistant
+Authorization: Bearer <token>
+Content-Type: application/json
+
+{
+  "message": "Which holdings are falling the most?",
+  "portfolioId": 1
+}
+```
+
+Example response:
+
+```json
+{
+  "answer": "Your largest decline is in TSLA at -4.20% based on current price versus average purchase price.",
+  "model": "llama-3.1-8b-instant",
+  "generatedAt": "2026-07-31T10:15:00"
+}
+```
+
+Chatbot configuration keys are available in `application.properties`:
+
+- `chatbot.groq.base-url`
+- `chatbot.groq.api-key`
+- `chatbot.groq.model`
+- `chatbot.groq.temperature`
+- `chatbot.max-holdings-in-context`
 
 ## Test
 
