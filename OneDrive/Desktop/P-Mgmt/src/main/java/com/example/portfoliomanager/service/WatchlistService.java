@@ -1,15 +1,18 @@
 package com.example.portfoliomanager.service;
 
+import java.time.LocalDateTime;
+import java.util.List;
+import java.util.Locale;
+
+import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
+
 import com.example.portfoliomanager.domain.Watchlist;
+import com.example.portfoliomanager.dto.ApiDtos.StockPriceResponse;
 import com.example.portfoliomanager.dto.ApiDtos.WatchlistRequest;
 import com.example.portfoliomanager.dto.ApiDtos.WatchlistResponse;
 import com.example.portfoliomanager.exception.ResourceNotFoundException;
 import com.example.portfoliomanager.repository.WatchlistRepository;
-import org.springframework.stereotype.Service;
-import org.springframework.transaction.annotation.Transactional;
-
-import java.util.List;
-import java.util.Locale;
 
 @Service
 @Transactional
@@ -17,10 +20,15 @@ public class WatchlistService {
 
     private final WatchlistRepository repository;
     private final PortfolioService portfolioService;
+    private final YahooFinanceService yahooFinanceService;
 
-    public WatchlistService(WatchlistRepository repository, PortfolioService portfolioService) {
+    public WatchlistService(
+            WatchlistRepository repository,
+            PortfolioService portfolioService,
+            YahooFinanceService yahooFinanceService) {
         this.repository = repository;
         this.portfolioService = portfolioService;
+        this.yahooFinanceService = yahooFinanceService;
     }
 
     @Transactional(readOnly = true)
@@ -57,9 +65,17 @@ public class WatchlistService {
     }
 
     private void apply(Watchlist entry, WatchlistRequest request) {
-        entry.setSymbol(request.symbol().trim().toUpperCase(Locale.ROOT));
-        entry.setCompanyName(request.companyName());
+        String symbol = request.symbol().trim().toUpperCase(Locale.ROOT);
+        StockPriceResponse quote = yahooFinanceService.getQuote(symbol);
+
+        entry.setSymbol(symbol);
+        entry.setCompanyName(
+                request.companyName() == null || request.companyName().isBlank()
+                        ? quote.companyName()
+                        : request.companyName().trim());
         entry.setTargetPrice(request.targetPrice());
+        entry.setCurrentPrice(quote.price());
+        entry.setLastPriceUpdate(LocalDateTime.now());
         entry.setPortfolio(portfolioService.getEntity(request.portfolioId()));
     }
 

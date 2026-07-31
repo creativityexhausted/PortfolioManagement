@@ -1,11 +1,12 @@
 package com.example.portfoliomanager.chatbot;
 
-import com.example.portfoliomanager.dto.ApiDtos.ChatAssistantRequest;
-import com.example.portfoliomanager.dto.ApiDtos.ChatAssistantResponse;
-import org.springframework.stereotype.Service;
-
 import java.time.LocalDateTime;
 import java.util.Locale;
+
+import org.springframework.stereotype.Service;
+
+import com.example.portfoliomanager.dto.ApiDtos.ChatAssistantRequest;
+import com.example.portfoliomanager.dto.ApiDtos.ChatAssistantResponse;
 
 @Service
 public class PortfolioAssistantService {
@@ -62,6 +63,11 @@ public class PortfolioAssistantService {
         try {
             return groqChatClient.chat(systemPrompt, userPrompt);
         } catch (RuntimeException ex) {
+            String message = ex.getMessage();
+            if (message != null && message.contains("GROQ_API_KEY is not configured")) {
+                return "AI chat is not configured yet. Set GROQ_API_KEY (or chatbot.groq.api-key) and restart the backend. "
+                        + context.highlights();
+            }
             return "I could not reach the AI provider right now. " + context.highlights();
         }
     }
