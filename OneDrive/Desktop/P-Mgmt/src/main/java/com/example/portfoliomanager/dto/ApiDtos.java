@@ -1,14 +1,15 @@
 package com.example.portfoliomanager.dto;
 
+import java.math.BigDecimal;
+import java.time.LocalDateTime;
+
 import com.example.portfoliomanager.domain.TransactionType;
+
 import io.swagger.v3.oas.annotations.media.Schema;
 import jakarta.validation.constraints.DecimalMin;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
 import jakarta.validation.constraints.Size;
-
-import java.math.BigDecimal;
-import java.time.LocalDateTime;
 
 public final class ApiDtos {
 
@@ -188,6 +189,15 @@ public final class ApiDtos {
             BigDecimal price,
             @Schema(description = "Quote currency", example = "USD")
             String currency
+    ) {
+    }
+
+    @Schema(description = "Historical stock close point")
+    public record StockHistoryPoint(
+            @Schema(description = "Unix timestamp in seconds", example = "1722412800")
+            long timestamp,
+            @Schema(description = "Close price at timestamp", example = "197.42")
+            BigDecimal close
     ) {
     }
 

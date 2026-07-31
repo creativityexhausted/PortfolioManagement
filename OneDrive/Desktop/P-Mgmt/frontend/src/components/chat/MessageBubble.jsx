@@ -41,67 +41,71 @@ const MessageBubbleComp = ({ message, onCopy, onFeedback }) => {
         </div>
       )}
 
-      <div className={`max-w-[82%] rounded-2xl border px-4 py-3 ${isUser ? "border-indigo-400/30 bg-indigo-500/15" : "border-white/10 bg-slate-900/70"}`}>
-        <div className="prose prose-invert prose-sm max-w-none text-slate-100">
-          <ReactMarkdown
-            components={{
-              code(props) {
-                const { children, className, ...rest } = props;
-                const match = /language-(\w+)/.exec(className || "");
-                if (!match) {
+      <div className={`max-w-[82%] rounded-2xl border px-4 py-3 ${isUser ? "border-indigo-400/30 bg-indigo-500/15" : "border-white/10 bg-slate-900"}`}>
+        {isUser ? (
+          <p className="whitespace-pre-wrap break-words text-sm leading-relaxed text-slate-100">{message.content}</p>
+        ) : (
+          <div className="prose prose-invert prose-sm max-w-none text-slate-100">
+            <ReactMarkdown
+              components={{
+                code(props) {
+                  const { children, className, ...rest } = props;
+                  const match = /language-(\w+)/.exec(className || "");
+                  if (!match) {
+                    return (
+                      <code className="rounded bg-slate-800/90 px-1 py-0.5 text-cyan-200" {...rest}>
+                        {children}
+                      </code>
+                    );
+                  }
                   return (
-                    <code className="rounded bg-slate-800/90 px-1 py-0.5 text-cyan-200" {...rest}>
+                    <SyntaxHighlighter
+                      PreTag="div"
+                      language={match[1]}
+                      style={atomDark}
+                      customStyle={{ borderRadius: "0.6rem", padding: "0.85rem" }}
+                    >
+                      {String(children).replace(/\n$/, "")}
+                    </SyntaxHighlighter>
+                  );
+                },
+                p({ children }) {
+                  if (typeof children?.[0] === "string" && children[0].trim().startsWith("<") && children[0].trim().endsWith(">")) {
+                    return <p>{children}</p>;
+                  }
+                  return <p className="leading-relaxed">{children}</p>;
+                },
+                text({ children }) {
+                  const text = Array.isArray(children) ? children.join("") : children;
+                  if (typeof text !== "string") return text;
+                  const nodes = [];
+                  let cursor = 0;
+                  for (const match of text.matchAll(/<([A-Z]{2,5})>/g)) {
+                    const idx = match.index ?? 0;
+                    if (idx > cursor) nodes.push(text.slice(cursor, idx));
+                    nodes.push(
+                      <span key={`${match[1]}-${idx}`} className="mx-1 inline-flex rounded-full border border-cyan-300/50 bg-cyan-500/15 px-2 py-0.5 text-[10px] font-semibold tracking-wide text-cyan-100">
+                        {match[1]}
+                      </span>,
+                    );
+                    cursor = idx + match[0].length;
+                  }
+                  if (cursor < text.length) nodes.push(text.slice(cursor));
+                  return nodes;
+                },
+                a({ href, children }) {
+                  return (
+                    <a href={href} target="_blank" rel="noreferrer" className="text-cyan-300 underline-offset-2 hover:underline">
                       {children}
-                    </code>
+                    </a>
                   );
-                }
-                return (
-                  <SyntaxHighlighter
-                    PreTag="div"
-                    language={match[1]}
-                    style={atomDark}
-                    customStyle={{ borderRadius: "0.6rem", padding: "0.85rem" }}
-                  >
-                    {String(children).replace(/\n$/, "")}
-                  </SyntaxHighlighter>
-                );
-              },
-              p({ children }) {
-                if (typeof children?.[0] === "string" && children[0].trim().startsWith("<") && children[0].trim().endsWith(">")) {
-                  return <p>{children}</p>;
-                }
-                return <p className="leading-relaxed">{children}</p>;
-              },
-              text({ children }) {
-                const text = Array.isArray(children) ? children.join("") : children;
-                if (typeof text !== "string") return text;
-                const nodes = [];
-                let cursor = 0;
-                for (const match of text.matchAll(/<([A-Z]{2,5})>/g)) {
-                  const idx = match.index ?? 0;
-                  if (idx > cursor) nodes.push(text.slice(cursor, idx));
-                  nodes.push(
-                    <span key={`${match[1]}-${idx}`} className="mx-1 inline-flex rounded-full border border-cyan-300/50 bg-cyan-500/15 px-2 py-0.5 text-[10px] font-semibold tracking-wide text-cyan-100">
-                      {match[1]}
-                    </span>,
-                  );
-                  cursor = idx + match[0].length;
-                }
-                if (cursor < text.length) nodes.push(text.slice(cursor));
-                return nodes;
-              },
-              a({ href, children }) {
-                return (
-                  <a href={href} target="_blank" rel="noreferrer" className="text-cyan-300 underline-offset-2 hover:underline">
-                    {children}
-                  </a>
-                );
-              },
-            }}
-          >
-            {rendered}
-          </ReactMarkdown>
-        </div>
+                },
+              }}
+            >
+              {rendered}
+            </ReactMarkdown>
+          </div>
+        )}
 
         <div className="mt-3 flex items-center justify-between gap-2 text-[11px] text-slate-500">
           <span>{formatDateTime(message.createdAt)}</span>

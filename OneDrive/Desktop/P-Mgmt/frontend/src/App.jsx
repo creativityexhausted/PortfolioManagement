@@ -188,6 +188,7 @@ function App() {
     fetchPortfolioData();
   }, [fetchPortfolioData]);
 
+
   const onAuthSubmit = async (payload) => {
     setAuthLoading(true);
     try {
@@ -865,6 +866,27 @@ function App() {
                     </div>
 
                     <div className={shellCardClass(isLight)}>
+                      {sectionHeader("Holdings Allocation", "Portfolio holdings split by current market value.", isLight)}
+                      <div className="h-[18rem] w-full">
+                        {allocationData.length ? (
+                          <ResponsiveContainer width="100%" height="100%">
+                            <PieChart>
+                              <Pie data={allocationData} dataKey="value" nameKey="name" outerRadius={104} innerRadius={52} paddingAngle={2}>
+                                {allocationData.map((entry, idx) => (
+                                  <Cell key={entry.name} fill={chartPalette[idx % chartPalette.length]} />
+                                ))}
+                              </Pie>
+                              <Tooltip formatter={(value, name) => [formatCurrency(value), `${name}`]} />
+                              <Legend />
+                            </PieChart>
+                          </ResponsiveContainer>
+                        ) : (
+                          <p className="text-sm text-slate-500">Add holdings to render the allocation chart.</p>
+                        )}
+                      </div>
+                    </div>
+
+                    <div className={shellCardClass(isLight)}>
                       <div className="overflow-x-auto">
                         <table className="min-w-full text-sm">
                           <thead className="text-left text-slate-400">
@@ -1160,7 +1182,7 @@ function App() {
             initial={{ opacity: 0, y: 20, scale: 0.98 }}
             animate={{ opacity: 1, y: 0, scale: 1 }}
             exit={{ opacity: 0, y: 16, scale: 0.98 }}
-            className="fixed bottom-4 right-4 z-50 flex h-[78vh] w-[min(100vw-1.5rem,31rem)] flex-col rounded-2xl border border-cyan-300/20 bg-slate-950/96 p-3 shadow-2xl shadow-cyan-950/40"
+            className="fixed bottom-4 right-4 z-50 flex h-[78vh] w-[min(100vw-1.5rem,31rem)] flex-col rounded-2xl border border-cyan-300/20 bg-slate-950 p-3 shadow-2xl shadow-cyan-950/40"
           >
             <div className="mb-2 flex items-center justify-between">
               <div className="inline-flex items-center gap-2 text-sm font-semibold text-cyan-100">

@@ -34,7 +34,7 @@ export const ChatInput = ({ onSend, onClear, loading, registerFocusRef }) => {
   }, [registerFocusRef]);
 
   return (
-    <div className="rounded-2xl border border-white/10 bg-slate-900/80 p-3 shadow-[0_0_0_1px_rgba(34,211,238,0.05)] backdrop-blur">
+    <div className="rounded-2xl border border-white/10 bg-slate-900 p-3 shadow-[0_0_0_1px_rgba(34,211,238,0.05)]">
       <div className="flex items-end gap-2">
         <button
           type="button"
@@ -58,7 +58,7 @@ export const ChatInput = ({ onSend, onClear, loading, registerFocusRef }) => {
             }}
             rows={1}
             placeholder="Ask about your portfolio, stock performance, or financial terms..."
-            className="w-full resize-none rounded-xl border border-white/10 bg-slate-950/70 px-3 py-2 pr-24 text-sm text-slate-100 outline-none transition focus:border-cyan-300/60"
+            className="w-full resize-none rounded-xl border border-white/10 bg-slate-950 px-3 py-2 pr-24 text-sm text-slate-100 outline-none transition focus:border-cyan-300/60"
             aria-label="Message input"
           />
           <span className={`absolute bottom-2 right-3 text-[10px] ${remaining < 100 ? "text-amber-300" : "text-slate-500"}`}>

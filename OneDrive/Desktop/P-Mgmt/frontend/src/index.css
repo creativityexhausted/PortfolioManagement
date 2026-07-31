@@ -88,6 +88,31 @@ html.light [class*="text-slate-500"] {
   color: #475569 !important;
 }
 
+html.light [class*="text-slate-600"],
+html.light [class*="text-slate-700"],
+html.light [class*="text-slate-800"],
+html.light [class*="text-slate-900"] {
+  color: #0f172a !important;
+}
+
+html.light .pm-app,
+html.light .pm-app p,
+html.light .pm-app span,
+html.light .pm-app label,
+html.light .pm-app td,
+html.light .pm-app th,
+html.light .pm-app li {
+  color: #0f172a;
+}
+
+html.light .pm-app thead th {
+  color: #334155 !important;
+}
+
+html.light .pm-app tbody td {
+  color: #0f172a !important;
+}
+
 h1,
 h2,
 h3,

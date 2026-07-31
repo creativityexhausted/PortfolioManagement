@@ -31,7 +31,7 @@ export const ChatWindow = ({
   };
 
   return (
-    <div className="relative flex h-full min-h-0 flex-col rounded-2xl border border-white/10 bg-slate-950/60">
+    <div className="relative flex h-full min-h-0 flex-col rounded-2xl border border-white/10 bg-slate-950">
       <div ref={containerRef} onScroll={onScroll} className="custom-scrollbar flex-1 space-y-4 overflow-y-auto p-4 sm:p-6">
         {!messages.length ? (
           <WelcomeScreen onPromptClick={onPromptClick} prompts={quickActions} />

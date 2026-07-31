@@ -48,14 +48,18 @@ export const useChatSessions = () => {
 
   const updateSession = useCallback(
     (sessionId, updater) => {
-      const next = sessions.map((session) => {
-        if (session.id !== sessionId) return session;
-        const updated = typeof updater === "function" ? updater(session) : { ...session, ...updater };
-        return { ...updated, updatedAt: new Date().toISOString() };
+      setSessions((currentSessions) => {
+        const next = currentSessions.map((session) => {
+          if (session.id !== sessionId) return session;
+          const updated = typeof updater === "function" ? updater(session) : { ...session, ...updater };
+          return { ...updated, updatedAt: new Date().toISOString() };
+        });
+        localStorage.setItem(STORAGE_KEY, JSON.stringify(next));
+        localStorage.setItem(ACTIVE_STORAGE_KEY, activeId);
+        return next;
       });
-      persist(next, activeId);
     },
-    [activeId, persist, sessions],
+    [activeId],
   );
 
   const deleteSession = useCallback(

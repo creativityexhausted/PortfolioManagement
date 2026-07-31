@@ -79,4 +79,10 @@ export const portfolioApi = {
     const { data } = await apiClient.get(`/api/stocks/${encodeURIComponent(symbol)}`);
     return data;
   },
+  getStockHistory: async (symbol, days = 14) => {
+    const { data } = await apiClient.get(`/api/stocks/${encodeURIComponent(symbol)}/history`, {
+      params: { days },
+    });
+    return data;
+  },
 };
