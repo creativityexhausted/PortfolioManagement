@@ -3,8 +3,11 @@ package com.example.portfoliomanager.controller;
 import com.example.portfoliomanager.dto.ApiDtos.NewsArticle;
 import com.example.portfoliomanager.dto.ApiDtos.StockPriceResponse;
 import com.example.portfoliomanager.exception.ApiError;
+import com.example.portfoliomanager.service.FinnhubStockService;
 import com.example.portfoliomanager.service.NewsService;
 import com.example.portfoliomanager.service.YahooFinanceService;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.Parameter;
 import io.swagger.v3.oas.annotations.media.Content;
@@ -25,11 +28,15 @@ import java.util.List;
 @Tag(name = "Market Data", description = "Endpoints for stock quotes and financial news")
 public class MarketDataController {
 
+    private static final Logger log = LoggerFactory.getLogger(MarketDataController.class);
+
     private final YahooFinanceService yahooFinanceService;
+    private final FinnhubStockService finnhubStockService;
     private final NewsService newsService;
 
-    public MarketDataController(YahooFinanceService yahooFinanceService, NewsService newsService) {
+    public MarketDataController(YahooFinanceService yahooFinanceService, FinnhubStockService finnhubStockService, NewsService newsService) {
         this.yahooFinanceService = yahooFinanceService;
+        this.finnhubStockService = finnhubStockService;
         this.newsService = newsService;
     }
 
@@ -51,6 +58,45 @@ public class MarketDataController {
             @PathVariable String symbol) {
         return yahooFinanceService.getQuote(symbol);
     }
+
+    @GetMapping("/market/indices")
+    @Operation(
+        summary = "Get market ticker tape data",
+        description = "Fetches real-time quotes for major US indices and stocks via Finnhub.")
+    public List<StockPriceResponse> getMarketIndices() {
+        // Simple mapping: Finnhub symbol -> display name
+        // SPY = S&P 500 ETF, DIA = Dow Jones ETF, QQQ = NASDAQ ETF
+        var tickers = new java.util.LinkedHashMap<String, String>();
+        tickers.put("SPY",  "S&P 500");
+        tickers.put("DIA",  "Dow Jones");
+        tickers.put("QQQ",  "NASDAQ");
+        tickers.put("AAPL", "Apple");
+        tickers.put("TSLA", "Tesla");
+        tickers.put("MSFT", "Microsoft");
+
+        List<StockPriceResponse> results = new java.util.ArrayList<>();
+        for (var entry : tickers.entrySet()) {
+            try {
+                StockPriceResponse quote = finnhubStockService.getQuote(entry.getKey());
+                results.add(new StockPriceResponse(
+                    entry.getKey(),
+                    entry.getValue(),
+                    quote.price(),
+                    "USD"
+                ));
+            } catch (Exception e) {
+                log.warn("Finnhub quote failed for {}: {}", entry.getKey(), e.getMessage());
+                results.add(new StockPriceResponse(
+                    entry.getKey(),
+                    entry.getValue(),
+                    java.math.BigDecimal.ZERO,
+                    "USD"
+                ));
+            }
+        }
+        return results;
+    }
+
 
     @GetMapping("/news")
         @Operation(

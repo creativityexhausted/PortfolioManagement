@@ -47,8 +47,10 @@ public final class ApiDtos {
             @Size(max = 150) String companyName,
             @Schema(description = "Owned quantity", example = "12.5", requiredMode = Schema.RequiredMode.REQUIRED)
             @NotNull @DecimalMin(value = "0.0", inclusive = false) BigDecimal quantity,
-            @Schema(description = "Average purchase price per share", example = "185.50", requiredMode = Schema.RequiredMode.REQUIRED)
-            @NotNull @DecimalMin("0.0") BigDecimal averagePurchasePrice,
+            @Schema(description = "Average purchase price per share (optional, fetched from Finnhub live price if omitted)", example = "185.50")
+            @DecimalMin("0.0") BigDecimal averagePurchasePrice,
+            @Schema(description = "Purchase date of stock (optional, YYYY-MM-DD)", example = "2026-01-15")
+            java.time.LocalDate purchaseDate,
             @Schema(description = "Portfolio ID to attach this holding", example = "1", requiredMode = Schema.RequiredMode.REQUIRED)
             @NotNull Long portfolioId
     ) {
@@ -70,6 +72,8 @@ public final class ApiDtos {
             BigDecimal currentPrice,
             @Schema(description = "Latest market price timestamp", example = "2026-07-30T10:15:00")
             LocalDateTime lastPriceUpdate,
+            @Schema(description = "Purchase date of stock", example = "2026-01-15")
+            java.time.LocalDate purchaseDate,
             @Schema(description = "Owning portfolio ID", example = "1")
             Long portfolioId
     ) {

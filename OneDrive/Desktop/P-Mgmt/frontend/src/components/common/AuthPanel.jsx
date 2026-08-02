@@ -16,7 +16,7 @@ export const AuthPanel = ({ mode, onModeChange, onSubmit, loading }) => {
         className="mt-5 space-y-3"
         onSubmit={(event) => {
           event.preventDefault();
-          onSubmit({ username, password });
+          onSubmit({ mode, username, password });
         }}
       >
         <label className="block">

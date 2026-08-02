@@ -1,10 +1,30 @@
 import { format, isValid, parseISO } from "date-fns";
 
-export const formatCurrency = (value) => {
+export const formatCurrency = (value, currencyCode, symbol = "") => {
   if (value == null || Number.isNaN(Number(value))) return "N/A";
-  return new Intl.NumberFormat("en-US", {
+
+  // Determine currency: prefer explicit currencyCode, then detect from symbol
+  let cur = currencyCode ? String(currencyCode).toUpperCase() : null;
+
+  if (!cur && symbol) {
+    const symUpper = String(symbol).toUpperCase();
+    if (
+      symUpper.endsWith(".NS") || symUpper.endsWith(".BO") ||
+      symUpper.includes("NSEI") || symUpper.includes("BSESN") ||
+      symUpper.includes("NIFTY") || symUpper.includes("SENSEX")
+    ) {
+      cur = "INR";
+    } else {
+      cur = "USD";
+    }
+  }
+
+  if (!cur) cur = "USD";
+
+  const locale = cur === "INR" ? "en-IN" : "en-US";
+  return new Intl.NumberFormat(locale, {
     style: "currency",
-    currency: "USD",
+    currency: cur,
     maximumFractionDigits: 2,
   }).format(Number(value));
 };

@@ -1,65 +1,64 @@
-import { ChevronDown, LayoutPanelLeft, Sparkles } from "lucide-react";
-import { ThemeToggle } from "../common/ThemeToggle";
+import { Bell, ChevronDown, Search, Settings, Sparkles, User } from "lucide-react";
 
 export const TopBar = ({
   username,
   sectionTitle,
-  portfolios,
+  portfolios = [],
   selectedPortfolioId,
   onPortfolioChange,
-  onToggleSidebar,
   onOpenAssistant,
-  theme,
-  onThemeToggle,
+  searchQuery = "",
+  onSearchChange = () => {},
 }) => (
-  <header className="sticky top-0 z-20 border-b border-white/10 bg-slate-950/70 px-4 py-3 backdrop-blur-xl">
-    <div className="flex flex-wrap items-center justify-between gap-3">
-      <div className="flex items-center gap-3">
-        <button
-          type="button"
-          className="rounded-lg border border-white/10 bg-slate-900/70 p-2 text-slate-300"
-          onClick={onToggleSidebar}
-          aria-label="Toggle sidebar"
-        >
-          <LayoutPanelLeft className="h-4 w-4" />
-        </button>
-        <div>
-          <p className="text-[11px] uppercase tracking-[0.25em] text-cyan-300/70">Portfolio Intelligence</p>
-          <p className="text-sm font-medium text-slate-100">{sectionTitle} | {username || "Investor"}</p>
-        </div>
+  <header className="sticky top-0 z-40 flex h-16 w-full items-center justify-between border-b border-outline-variant bg-surface-container/80 px-lg backdrop-blur-xl">
+    {/* Left Search Bar & Section Title */}
+    <div className="flex items-center gap-md flex-1">
+      <div className="relative w-72 md:w-96">
+        <Search className="absolute left-sm top-1/2 h-4 w-4 -translate-y-1/2 text-on-surface-variant" />
+        <input
+          type="text"
+          value={searchQuery}
+          onChange={(e) => onSearchChange(e.target.value)}
+          placeholder="Search markets, stocks, indices..."
+          className="w-full rounded-full bg-surface-dim border-none py-xs pl-xl pr-md text-body-sm text-on-surface placeholder:text-on-surface-variant/60 focus:outline-none focus:ring-1 focus:ring-primary"
+        />
       </div>
 
-      <div className="flex items-center gap-2">
-        <label className="relative">
-          <ChevronDown className="pointer-events-none absolute right-2 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-slate-400" />
-          <select
-            value={selectedPortfolioId ?? "all"}
-            onChange={(event) => {
-              const value = event.target.value;
-              onPortfolioChange(value === "all" ? null : Number(value));
-            }}
-            className="appearance-none rounded-full border border-white/10 bg-slate-900/70 px-3 py-1.5 pr-7 text-xs text-slate-100"
-            aria-label="Select portfolio"
-          >
-            <option value="all">All portfolios</option>
-            {portfolios.map((portfolio) => (
-              <option key={portfolio.id} value={portfolio.id}>
-                {portfolio.name}
-              </option>
-            ))}
-          </select>
-        </label>
 
+    </div>
+
+    {/* Right Icons & Executive Profile */}
+    <div className="flex items-center gap-md">
+      <div className="flex items-center gap-sm mr-sm">
         <button
           type="button"
           onClick={onOpenAssistant}
-          className="rounded-full border border-cyan-300/40 bg-cyan-500/10 p-2 text-cyan-200"
-          aria-label="Open AI assistant"
+          className="p-1.5 text-on-surface-variant hover:text-primary transition-colors"
+          title="AI Assistant"
         >
-          <Sparkles className="h-4 w-4" />
+          <Sparkles className="h-5 w-5" />
         </button>
+        <button
+          type="button"
+          className="p-1.5 text-on-surface-variant hover:text-primary transition-colors"
+          title="Notifications"
+        >
+          <Bell className="h-5 w-5" />
+        </button>
+      </div>
 
-        <ThemeToggle theme={theme} onToggle={onThemeToggle} />
+      <div className="flex items-center gap-sm border-l border-outline-variant pl-md">
+        <div className="text-right hidden lg:block">
+          <p className="font-label-caps text-label-caps text-on-surface font-semibold">
+            {username || "Alex Rivera"}
+          </p>
+          <p className="text-[10px] text-on-surface-variant uppercase tracking-widest">
+            Executive Tier
+          </p>
+        </div>
+        <div className="flex h-9 w-9 items-center justify-center rounded-full border border-outline-variant bg-surface-bright text-primary font-bold">
+          {username ? username.charAt(0).toUpperCase() : <User className="h-4 w-4" />}
+        </div>
       </div>
     </div>
   </header>

@@ -79,4 +79,8 @@ export const portfolioApi = {
     const { data } = await apiClient.get(`/api/stocks/${encodeURIComponent(symbol)}`);
     return data;
   },
+  getMarketIndices: async () => {
+    const { data } = await apiClient.get("/api/market/indices");
+    return data;
+  },
 };

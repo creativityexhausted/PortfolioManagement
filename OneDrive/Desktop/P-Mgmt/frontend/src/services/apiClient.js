@@ -19,6 +19,17 @@ apiClient.interceptors.request.use((config) => {
   return config;
 });
 
+apiClient.interceptors.response.use(
+  (response) => response,
+  (error) => {
+    if (error.response && error.response.status === 401) {
+      tokenStore.clear();
+      localStorage.removeItem("pm_username");
+    }
+    return Promise.reject(error);
+  }
+);
+
 export const tokenStore = {
   key: TOKEN_STORAGE_KEY,
   get: () => localStorage.getItem(TOKEN_STORAGE_KEY),

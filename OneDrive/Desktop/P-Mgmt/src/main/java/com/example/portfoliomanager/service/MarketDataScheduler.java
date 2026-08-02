@@ -34,7 +34,7 @@ public class MarketDataScheduler {
     }
 
     @Scheduled(
-            initialDelayString = "${market-data.schedule.initial-delay-ms:60000}",
+            initialDelayString = "${market-data.schedule.initial-delay-ms:5000}",
             fixedDelayString = "${market-data.schedule.fixed-delay-ms:300000}")
     public void updateStockPrices() {
         holdingRepository.findAll().forEach(this::updateHolding);

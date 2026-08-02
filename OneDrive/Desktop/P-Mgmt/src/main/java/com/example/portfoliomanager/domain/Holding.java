@@ -41,6 +41,9 @@ public class Holding {
 
     private LocalDateTime lastPriceUpdate;
 
+    @Column(name = "purchase_date")
+    private java.time.LocalDate purchaseDate;
+
     @ManyToOne(fetch = FetchType.LAZY, optional = false)
     @JoinColumn(name = "portfolio_id", nullable = false)
     private Portfolio portfolio;
@@ -58,6 +61,8 @@ public class Holding {
     public void setCurrentPrice(BigDecimal currentPrice) { this.currentPrice = currentPrice; }
     public LocalDateTime getLastPriceUpdate() { return lastPriceUpdate; }
     public void setLastPriceUpdate(LocalDateTime lastPriceUpdate) { this.lastPriceUpdate = lastPriceUpdate; }
+    public java.time.LocalDate getPurchaseDate() { return purchaseDate; }
+    public void setPurchaseDate(java.time.LocalDate purchaseDate) { this.purchaseDate = purchaseDate; }
     public Portfolio getPortfolio() { return portfolio; }
     public void setPortfolio(Portfolio portfolio) { this.portfolio = portfolio; }
 }

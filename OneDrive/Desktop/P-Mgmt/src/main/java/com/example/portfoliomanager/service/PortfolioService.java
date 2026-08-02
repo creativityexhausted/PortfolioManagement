@@ -20,9 +20,16 @@ public class PortfolioService {
         this.repository = repository;
     }
 
-    @Transactional(readOnly = true)
+    @Transactional
     public List<PortfolioResponse> findAll() {
-        return repository.findAll().stream().map(this::toResponse).toList();
+        List<Portfolio> list = repository.findAll();
+        if (list.isEmpty()) {
+            Portfolio main = new Portfolio();
+            main.setName("Main Portfolio");
+            main.setDescription("Primary Investment Account");
+            list = List.of(repository.save(main));
+        }
+        return list.stream().map(this::toResponse).toList();
     }
 
     @Transactional(readOnly = true)
