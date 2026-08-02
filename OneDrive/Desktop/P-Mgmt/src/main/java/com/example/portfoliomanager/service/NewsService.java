@@ -21,9 +21,9 @@ public class NewsService {
 
     public NewsService(
             RestClient.Builder builder,
-            @Value("${news.api.base-url:https://newsapi.org}") String baseUrl,
+            @Value("${news.api.base-url:https://www.alphavantage.co}") String baseUrl,
             @Value("${news.api.key:}") String apiKey,
-            @Value("${news.api.query:stock market OR finance}") String query) {
+            @Value("${news.api.query:financial_markets}") String query) {
         this.restClient = builder.baseUrl(baseUrl).build();
         this.apiKey = apiKey;
         this.query = query;
@@ -40,19 +40,18 @@ public class NewsService {
         try {
             NewsApiResponse response = restClient.get()
                     .uri(uriBuilder -> uriBuilder
-                            .path("/v2/everything")
-                            .queryParam("q", query)
-                            .queryParam("language", "en")
-                            .queryParam("sortBy", "publishedAt")
-                            .queryParam("pageSize", 20)
-                            .queryParam("apiKey", apiKey)
+                            .path("/query")
+                            .queryParam("function", "NEWS_SENTIMENT")
+                            .queryParam("topics", query)
+                            .queryParam("limit", 15)
+                            .queryParam("apikey", apiKey)
                             .build())
                     .retrieve()
                     .body(NewsApiResponse.class);
 
-            List<NewsArticle> articles = response == null || response.articles() == null
+            List<NewsArticle> articles = response == null || response.feed() == null
                     ? List.of()
-                    : response.articles().stream().map(this::toArticle).toList();
+                    : response.feed().stream().map(this::toArticle).toList();
             cachedArticles.set(articles);
             return articles;
         } catch (RuntimeException exception) {
@@ -65,27 +64,29 @@ public class NewsService {
     }
 
     private NewsArticle toArticle(ArticlePayload article) {
-        String source = article.source() == null ? null : article.source().name();
-        return new NewsArticle(article.title(), article.description(), article.url(),
-                article.urlToImage(), article.publishedAt(), source);
+        String publishedAt = article.time_published();
+        // Alpha Vantage format: YYYYMMDDTHHMMSS -> Convert to standard ISO8601
+        if (publishedAt != null && publishedAt.length() == 15) {
+             publishedAt = publishedAt.substring(0, 4) + "-" + publishedAt.substring(4, 6) + "-" + 
+                           publishedAt.substring(6, 8) + "T" + publishedAt.substring(9, 11) + ":" + 
+                           publishedAt.substring(11, 13) + ":" + publishedAt.substring(13, 15) + "Z";
+        }
+        return new NewsArticle(article.title(), article.summary(), article.url(),
+                article.banner_image(), publishedAt, article.source());
     }
 
     @JsonIgnoreProperties(ignoreUnknown = true)
-    private record NewsApiResponse(List<ArticlePayload> articles) {
+    private record NewsApiResponse(List<ArticlePayload> feed) {
     }
 
     @JsonIgnoreProperties(ignoreUnknown = true)
     private record ArticlePayload(
-            SourcePayload source,
+            String source,
             String title,
-            String description,
+            String summary,
             String url,
-            String urlToImage,
-            String publishedAt
+            String banner_image,
+            String time_published
     ) {
-    }
-
-    @JsonIgnoreProperties(ignoreUnknown = true)
-    private record SourcePayload(String name) {
     }
 }

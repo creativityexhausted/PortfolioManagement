@@ -1780,7 +1780,7 @@ function MarketView({ news, onRefreshNews, quote, quoteLoading, quoteSymbol, set
       <div className="flex justify-between items-center">
         <div>
           <h2 className="font-headline-md text-headline-md font-bold">Financial News & Live Quotes</h2>
-          <p className="text-body-sm text-on-surface-variant">Powered by Yahoo Finance & NewsAPI</p>
+          <p className="text-body-sm text-on-surface-variant">Powered by Yahoo Finance & Alpha Vantage</p>
         </div>
         <button
           type="button"
