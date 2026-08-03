@@ -136,7 +136,18 @@ export default function App() {
     createSession,
     updateSession,
     appendToActiveSession,
+    resetSessions,
   } = useChatSessions();
+
+  const clearUserScopedState = () => {
+    setPortfolios([]);
+    setHoldings([]);
+    setTransactions([]);
+    setWatchlist([]);
+    setNews([]);
+    setSelectedPortfolioId(null);
+    resetSessions();
+  };
 
   const onAuthSubmit = async ({ mode, username: userVal, password }) => {
     setAuthLoading(true);
@@ -145,6 +156,9 @@ export default function App() {
         mode === "register"
           ? await authApi.register({ username: userVal, password })
           : await authApi.login({ username: userVal, password });
+
+      // Ensure no stale data/chat history from a previous account leaks into this session.
+      clearUserScopedState();
 
       tokenStore.set(response.token);
       localStorage.setItem(USERNAME_KEY, userVal);
@@ -254,6 +268,7 @@ export default function App() {
   const onLogout = () => {
     tokenStore.clear();
     localStorage.removeItem(USERNAME_KEY);
+    clearUserScopedState();
     setAuthenticated(false);
     setUsername("");
     pushToast("Signed out successfully.", "info");

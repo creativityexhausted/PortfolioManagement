@@ -58,6 +58,23 @@ export const useChatSessions = () => {
     [activeId, persist, sessions],
   );
 
+  const appendToActiveSession = useCallback(
+    (messagesUpdater) => {
+      setSessions((prevSessions) => {
+        const next = prevSessions.map((session) => {
+          if (session.id !== activeId) return session;
+          const prevMessages = session.messages || [];
+          const nextMessages =
+            typeof messagesUpdater === "function" ? messagesUpdater(prevMessages) : messagesUpdater;
+          return { ...session, messages: nextMessages, updatedAt: new Date().toISOString() };
+        });
+        localStorage.setItem(STORAGE_KEY, JSON.stringify(next));
+        return next;
+      });
+    },
+    [activeId],
+  );
+
   const deleteSession = useCallback(
     (sessionId) => {
       const filtered = sessions.filter((session) => session.id !== sessionId);
@@ -75,6 +92,13 @@ export const useChatSessions = () => {
     [updateSession],
   );
 
+  const resetSessions = useCallback(() => {
+    const fresh = defaultSession();
+    localStorage.removeItem(STORAGE_KEY);
+    localStorage.removeItem(ACTIVE_STORAGE_KEY);
+    persist([fresh], fresh.id);
+  }, [persist]);
+
   return {
     sessions,
     activeId,
@@ -82,7 +106,9 @@ export const useChatSessions = () => {
     setActiveId,
     createSession,
     updateSession,
+    appendToActiveSession,
     deleteSession,
     setSessionPinned,
+    resetSessions,
   };
 };
