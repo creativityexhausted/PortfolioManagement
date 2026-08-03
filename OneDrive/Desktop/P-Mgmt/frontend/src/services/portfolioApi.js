@@ -33,6 +33,12 @@ export const portfolioApi = {
   deleteHolding: async (id) => {
     await apiClient.delete(`/api/holdings/${id}`);
   },
+  searchAssets: async (query) => {
+    const { data } = await apiClient.get("/api/assets/search", {
+      params: { query },
+    });
+    return data;
+  },
   getTransactions: async (portfolioId = null) => {
     const { data } = await apiClient.get("/api/transactions", {
       params: portfolioId ? { portfolioId } : {},

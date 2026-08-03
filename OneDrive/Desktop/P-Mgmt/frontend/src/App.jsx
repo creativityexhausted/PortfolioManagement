@@ -102,6 +102,9 @@ export default function App() {
   const [quoteLoading, setQuoteLoading] = useState(false);
   const [quote, setQuote] = useState(null);
   const [quoteSymbol, setQuoteSymbol] = useState("");
+  const [assetSearchQuery, setAssetSearchQuery] = useState("");
+  const [assetSearchResults, setAssetSearchResults] = useState([]);
+  const [assetSearchLoading, setAssetSearchLoading] = useState(false);
 
   // Forms State
   const [holdingForm, setHoldingForm] = useState({
@@ -429,6 +432,37 @@ export default function App() {
     }
   };
 
+  // Debounced Alpha Vantage asset search (stocks/ETFs/mutual funds) for the Add Holding form.
+  useEffect(() => {
+    const term = assetSearchQuery.trim();
+    if (term.length < 2) {
+      setAssetSearchResults([]);
+      return;
+    }
+    setAssetSearchLoading(true);
+    const timer = setTimeout(async () => {
+      try {
+        const results = await portfolioApi.searchAssets(term);
+        setAssetSearchResults(results || []);
+      } catch (error) {
+        setAssetSearchResults([]);
+      } finally {
+        setAssetSearchLoading(false);
+      }
+    }, 400);
+    return () => clearTimeout(timer);
+  }, [assetSearchQuery]);
+
+  const selectAssetSearchResult = (result) => {
+    setHoldingForm((h) => ({
+      ...h,
+      symbol: result.symbol,
+      companyName: result.name || h.companyName,
+    }));
+    setAssetSearchQuery("");
+    setAssetSearchResults([]);
+  };
+
   const insights = useMemo(
     () => computePortfolioInsights({ holdings, transactions }),
     [holdings, transactions],
@@ -552,6 +586,11 @@ export default function App() {
                   quoteSymbol={quoteSymbol}
                   setQuoteSymbol={setQuoteSymbol}
                   onLookupQuote={lookupQuote}
+                  assetSearchQuery={assetSearchQuery}
+                  setAssetSearchQuery={setAssetSearchQuery}
+                  assetSearchResults={assetSearchResults}
+                  assetSearchLoading={assetSearchLoading}
+                  onSelectAssetSearchResult={selectAssetSearchResult}
                 />
               }
             />
@@ -1356,6 +1395,11 @@ function HoldingsView({
   quoteSymbol,
   setQuoteSymbol,
   onLookupQuote,
+  assetSearchQuery,
+  setAssetSearchQuery,
+  assetSearchResults,
+  assetSearchLoading,
+  onSelectAssetSearchResult,
 }) {
   return (
     <div className="space-y-lg">
@@ -1373,6 +1417,41 @@ function HoldingsView({
             <h3 className="font-bold text-on-surface text-base">
               {holdingForm.id ? "Edit Holding" : "Add New Holding"}
             </h3>
+            <div className="relative">
+              <label className="text-xs font-label-caps text-on-surface-variant">
+                Search Stocks / ETFs / Mutual Funds
+              </label>
+              <input
+                type="text"
+                value={assetSearchQuery}
+                onChange={(e) => setAssetSearchQuery(e.target.value)}
+                placeholder="e.g. Vanguard S&P 500, VOO, Apple"
+                className="w-full bg-surface-dim border border-outline-variant/60 rounded-lg p-sm text-body-sm text-on-surface focus:ring-1 focus:ring-primary"
+              />
+              {assetSearchLoading && (
+                <p className="text-[11px] text-on-surface-variant mt-1">Searching Alpha Vantage…</p>
+              )}
+              {assetSearchResults.length > 0 && (
+                <div className="absolute z-20 mt-1 w-full max-h-56 overflow-y-auto bg-surface border border-outline-variant/60 rounded-lg shadow-lg">
+                  {assetSearchResults.map((result) => (
+                    <button
+                      type="button"
+                      key={`${result.symbol}-${result.region}`}
+                      onClick={() => onSelectAssetSearchResult(result)}
+                      className="w-full text-left px-sm py-xs hover:bg-surface-variant flex items-center justify-between gap-xs border-b border-outline-variant/30 last:border-0"
+                    >
+                      <span className="min-w-0">
+                        <span className="block font-bold text-xs text-on-surface">{result.symbol}</span>
+                        <span className="block text-[11px] text-on-surface-variant truncate">{result.name}</span>
+                      </span>
+                      <span className="shrink-0 text-[10px] uppercase tracking-wide px-xs py-[2px] rounded-full bg-primary/15 text-primary font-bold">
+                        {result.type || "Asset"}
+                      </span>
+                    </button>
+                  ))}
+                </div>
+              )}
+            </div>
             <div>
               <label className="text-xs font-label-caps text-on-surface-variant">Ticker Symbol</label>
               <input
@@ -1416,6 +1495,20 @@ function HoldingsView({
                   className="w-full bg-surface-dim border border-outline-variant/60 rounded-lg p-sm text-body-sm text-on-surface focus:ring-1 focus:ring-primary"
                 />
               </div>
+            </div>
+            <div>
+              <label className="text-xs font-label-caps text-on-surface-variant">
+                Avg Purchase Price <span className="normal-case text-on-surface-variant/70">(optional — required for some mutual funds)</span>
+              </label>
+              <input
+                type="number"
+                step="any"
+                min="0"
+                value={holdingForm.averagePurchasePrice}
+                onChange={(e) => setHoldingForm((h) => ({ ...h, averagePurchasePrice: e.target.value }))}
+                placeholder="Leave blank to auto-fetch from Finnhub/Alpha Vantage"
+                className="w-full bg-surface-dim border border-outline-variant/60 rounded-lg p-sm text-body-sm text-on-surface focus:ring-1 focus:ring-primary"
+              />
             </div>
             <div className="flex gap-xs pt-xs">
               <button

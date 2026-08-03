@@ -2,11 +2,13 @@ package com.example.portfoliomanager.controller;
 
 import com.example.portfoliomanager.chatbot.NewsAiEnrichmentService;
 import com.example.portfoliomanager.chatbot.PortfolioAssistantContextService;
+import com.example.portfoliomanager.dto.ApiDtos.AssetSearchResult;
 import com.example.portfoliomanager.dto.ApiDtos.CandleResponse;
 import com.example.portfoliomanager.dto.ApiDtos.NewsArticle;
 import com.example.portfoliomanager.dto.ApiDtos.NewsPortfolioBrief;
 import com.example.portfoliomanager.dto.ApiDtos.StockPriceResponse;
 import com.example.portfoliomanager.exception.ApiError;
+import com.example.portfoliomanager.service.AlphaVantageAssetService;
 import com.example.portfoliomanager.service.FinnhubStockService;
 import com.example.portfoliomanager.service.NewsService;
 import com.example.portfoliomanager.service.YahooFinanceService;
@@ -40,18 +42,21 @@ public class MarketDataController {
     private final NewsService newsService;
     private final NewsAiEnrichmentService newsAiEnrichmentService;
     private final PortfolioAssistantContextService portfolioAssistantContextService;
+    private final AlphaVantageAssetService alphaVantageAssetService;
 
     public MarketDataController(
             YahooFinanceService yahooFinanceService,
             FinnhubStockService finnhubStockService,
             NewsService newsService,
             NewsAiEnrichmentService newsAiEnrichmentService,
-            PortfolioAssistantContextService portfolioAssistantContextService) {
+            PortfolioAssistantContextService portfolioAssistantContextService,
+            AlphaVantageAssetService alphaVantageAssetService) {
         this.yahooFinanceService = yahooFinanceService;
         this.finnhubStockService = finnhubStockService;
         this.newsService = newsService;
         this.newsAiEnrichmentService = newsAiEnrichmentService;
         this.portfolioAssistantContextService = portfolioAssistantContextService;
+        this.alphaVantageAssetService = alphaVantageAssetService;
     }
 
     @GetMapping("/stocks/{symbol}")
@@ -217,5 +222,23 @@ public class MarketDataController {
         }
 
         return new NewsPortfolioBrief(brief, "llama-3.3-70b-versatile", java.time.LocalDateTime.now());
+    }
+
+    @GetMapping("/assets/search")
+        @Operation(
+            summary = "Search tradable assets (stocks, ETFs, mutual funds)",
+            description = "Uses Alpha Vantage's SYMBOL_SEARCH to look up instruments by name or ticker keyword, "
+                    + "so ETFs and mutual funds (in addition to equities) can be selected when adding a holding.")
+        @ApiResponses({
+            @ApiResponse(responseCode = "200", description = "Search completed successfully"),
+            @ApiResponse(responseCode = "500", description = "Unexpected server error",
+                content = @Content(schema = @Schema(implementation = ApiError.class))),
+            @ApiResponse(responseCode = "502", description = "External Alpha Vantage API error",
+                content = @Content(schema = @Schema(implementation = ApiError.class)))
+        })
+    public List<AssetSearchResult> searchAssets(
+            @Parameter(description = "Keyword to search for, e.g. company name or ticker", example = "vanguard", required = true)
+            @RequestParam String query) {
+        return alphaVantageAssetService.searchSymbols(query);
     }
 }

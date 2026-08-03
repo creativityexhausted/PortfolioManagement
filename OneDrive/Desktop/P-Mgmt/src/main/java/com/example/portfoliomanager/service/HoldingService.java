@@ -25,12 +25,14 @@ public class HoldingService {
     private final HoldingRepository repository;
     private final PortfolioService portfolioService;
     private final FinnhubStockService finnhubStockService;
+    private final AlphaVantageAssetService alphaVantageAssetService;
     private final com.example.portfoliomanager.repository.TransactionRepository transactionRepository;
 
-    public HoldingService(HoldingRepository repository, PortfolioService portfolioService, FinnhubStockService finnhubStockService, com.example.portfoliomanager.repository.TransactionRepository transactionRepository) {
+    public HoldingService(HoldingRepository repository, PortfolioService portfolioService, FinnhubStockService finnhubStockService, AlphaVantageAssetService alphaVantageAssetService, com.example.portfoliomanager.repository.TransactionRepository transactionRepository) {
         this.repository = repository;
         this.portfolioService = portfolioService;
         this.finnhubStockService = finnhubStockService;
+        this.alphaVantageAssetService = alphaVantageAssetService;
         this.transactionRepository = transactionRepository;
     }
 
@@ -62,15 +64,22 @@ public class HoldingService {
 
         // Fetch historical purchase price for this batch based on purchaseDate
         BigDecimal newBatchPrice = request.averagePurchasePrice();
-        StockPriceResponse quote = null;
         if (newBatchPrice == null || newBatchPrice.compareTo(BigDecimal.ZERO) <= 0) {
             try {
-                quote = finnhubStockService.getHistoricalQuote(symbol, request.purchaseDate());
+                StockPriceResponse quote = finnhubStockService.getHistoricalQuote(symbol, request.purchaseDate());
                 if (quote != null && quote.price() != null) {
                     newBatchPrice = quote.price();
                 }
             } catch (Exception e) {
                 log.warn("Could not fetch historical quote for {} on {}: {}", symbol, request.purchaseDate(), e.getMessage());
+            }
+        }
+        if (newBatchPrice == null || newBatchPrice.compareTo(BigDecimal.ZERO) <= 0) {
+            // Finnhub does not support most mutual fund tickers - fall back to Alpha Vantage's
+            // latest quote (best-effort approximation when a historical price isn't available).
+            StockPriceResponse fallback = alphaVantageAssetService.getQuote(symbol);
+            if (fallback != null && fallback.price() != null) {
+                newBatchPrice = fallback.price();
             }
         }
         if (newBatchPrice == null || newBatchPrice.compareTo(BigDecimal.ZERO) <= 0) {
@@ -108,8 +117,16 @@ public class HoldingService {
                 if (live != null && live.price() != null) {
                     existing.setCurrentPrice(live.price());
                     existing.setLastPriceUpdate(LocalDateTime.now());
+                } else {
+                    throw new IllegalStateException("no price from finnhub");
                 }
-            } catch (Exception ignored) {}
+            } catch (Exception e) {
+                StockPriceResponse fallback = alphaVantageAssetService.getQuote(symbol);
+                if (fallback != null && fallback.price() != null) {
+                    existing.setCurrentPrice(fallback.price());
+                    existing.setLastPriceUpdate(LocalDateTime.now());
+                }
+            }
 
             savedHolding = repository.save(existing);
         } else {
@@ -164,21 +181,34 @@ public class HoldingService {
         if (batchPrice != null && batchPrice.compareTo(BigDecimal.ZERO) > 0) {
             holding.setAveragePurchasePrice(batchPrice);
         } else {
+            BigDecimal resolvedPrice = null;
             try {
                 StockPriceResponse histQuote = finnhubStockService.getHistoricalQuote(symbol, request.purchaseDate());
                 if (histQuote != null && histQuote.price() != null) {
-                    holding.setAveragePurchasePrice(histQuote.price());
+                    resolvedPrice = histQuote.price();
                     if (companyName == null || companyName.isBlank()) {
                         companyName = histQuote.companyName();
                     }
-                } else {
-                    throw new com.example.portfoliomanager.exception.ExternalApiException("Could not fetch historical price for " + symbol + " on " + request.purchaseDate() + ". API might be rate-limiting. Please try again later.", null);
                 }
-            } catch (com.example.portfoliomanager.exception.ExternalApiException e) {
-                throw e; // rethrow
             } catch (Exception e) {
-                log.warn("Could not fetch historical quote for {}: {}", symbol, e.getMessage());
-                throw new com.example.portfoliomanager.exception.ExternalApiException("Failed to retrieve historical price from API for " + symbol + ". " + e.getMessage(), e);
+                log.warn("Could not fetch historical quote for {} from Finnhub: {}", symbol, e.getMessage());
+            }
+
+            if (resolvedPrice == null) {
+                // Finnhub does not cover most mutual fund tickers (returns 403/no data).
+                // Fall back to Alpha Vantage's latest quote as a best-effort approximation.
+                StockPriceResponse fallback = alphaVantageAssetService.getQuote(symbol);
+                if (fallback != null && fallback.price() != null) {
+                    resolvedPrice = fallback.price();
+                }
+            }
+
+            if (resolvedPrice != null) {
+                holding.setAveragePurchasePrice(resolvedPrice);
+            } else {
+                throw new com.example.portfoliomanager.exception.ExternalApiException(
+                        "Could not automatically fetch a price for " + symbol + " from Finnhub or Alpha Vantage. "
+                                + "This is common for mutual funds. Please enter the Avg Purchase Price manually.", null);
             }
         }
 
@@ -191,12 +221,16 @@ public class HoldingService {
                 if (companyName == null || companyName.isBlank()) {
                     companyName = liveQuote.companyName();
                 }
-            } else if (holding.getCurrentPrice() == null) {
-                holding.setCurrentPrice(holding.getAveragePurchasePrice());
+            } else {
+                throw new IllegalStateException("no live quote from finnhub");
             }
         } catch (Exception e) {
-            log.warn("Could not fetch live quote for {}: {}", symbol, e.getMessage());
-            if (holding.getCurrentPrice() == null) {
+            log.warn("Could not fetch live quote for {} from Finnhub: {}", symbol, e.getMessage());
+            StockPriceResponse fallback = alphaVantageAssetService.getQuote(symbol);
+            if (fallback != null && fallback.price() != null) {
+                holding.setCurrentPrice(fallback.price());
+                holding.setLastPriceUpdate(LocalDateTime.now());
+            } else if (holding.getCurrentPrice() == null) {
                 holding.setCurrentPrice(holding.getAveragePurchasePrice());
             }
         }

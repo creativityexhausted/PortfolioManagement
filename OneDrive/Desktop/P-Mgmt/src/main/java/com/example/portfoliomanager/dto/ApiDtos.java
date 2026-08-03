@@ -261,6 +261,23 @@ public final class ApiDtos {
     ) {
     }
 
+    @Schema(description = "Tradable asset match returned by symbol search (stocks, ETFs, mutual funds)")
+    public record AssetSearchResult(
+            @Schema(description = "Ticker symbol", example = "VOO")
+            String symbol,
+            @Schema(description = "Instrument name", example = "Vanguard S&P 500 ETF")
+            String name,
+            @Schema(description = "Instrument type as reported by Alpha Vantage", example = "ETF")
+            String type,
+            @Schema(description = "Region/exchange", example = "United States")
+            String region,
+            @Schema(description = "Trading currency", example = "USD")
+            String currency,
+            @Schema(description = "Alpha Vantage match confidence score (0-1)", example = "0.85")
+            Double matchScore
+    ) {
+    }
+
     @Schema(description = "Portfolio assistant chat request")
     public record ChatAssistantRequest(
             @Schema(description = "User message for the assistant", example = "Which holdings dropped the most this week?", requiredMode = Schema.RequiredMode.REQUIRED)
