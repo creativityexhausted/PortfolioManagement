@@ -1,16 +1,17 @@
 package com.example.portfoliomanager.service;
 
-import com.example.portfoliomanager.dto.ApiDtos.StockPriceResponse;
-import com.example.portfoliomanager.exception.ExternalApiException;
+import java.math.BigDecimal;
+import java.util.Locale;
+import java.util.Map;
+
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 import org.springframework.web.client.RestClient;
 
-import java.math.BigDecimal;
-import java.util.Locale;
-import java.util.Map;
+import com.example.portfoliomanager.dto.ApiDtos.StockPriceResponse;
+import com.example.portfoliomanager.exception.ExternalApiException;
 
 @Service
 public class FinnhubStockService {
@@ -148,5 +149,66 @@ public class FinnhubStockService {
         }
 
         return null;
+    }
+
+    /**
+     * Fetches OHLCV candlestick history for a symbol, for use in TradingView-style charts.
+     *
+     * @param rawSymbol  ticker symbol
+     * @param resolution Finnhub resolution: 1, 5, 15, 30, 60, D, W, M
+     * @param days       how many days back from "now" to fetch
+     */
+    public com.example.portfoliomanager.dto.ApiDtos.CandleResponse getCandles(String rawSymbol, String resolution, int days) {
+        String symbol = rawSymbol.trim().toUpperCase(Locale.ROOT);
+        if (!isConfigured()) {
+            throw new ExternalApiException("Finnhub API key is not configured. Please set FINNHUB_API_KEY in your .env file.", null);
+        }
+
+        String res = (resolution == null || resolution.isBlank()) ? "D" : resolution;
+        long toEpoch = java.time.Instant.now().getEpochSecond();
+        long fromEpoch = java.time.Instant.now().minus(java.time.Duration.ofDays(Math.max(days, 1))).getEpochSecond();
+
+        try {
+            @SuppressWarnings("unchecked")
+            Map<String, Object> candleResponse = restClient.get()
+                    .uri(uriBuilder -> uriBuilder
+                            .path("/stock/candle")
+                            .queryParam("symbol", symbol)
+                            .queryParam("resolution", res)
+                            .queryParam("from", fromEpoch)
+                            .queryParam("to", toEpoch)
+                            .queryParam("token", apiKey)
+                            .build())
+                    .retrieve()
+                    .body(Map.class);
+
+            java.util.List<com.example.portfoliomanager.dto.ApiDtos.CandlePoint> points = new java.util.ArrayList<>();
+            if (candleResponse != null && "ok".equals(candleResponse.get("s"))) {
+                java.util.List<?> opens = (java.util.List<?>) candleResponse.get("o");
+                java.util.List<?> highs = (java.util.List<?>) candleResponse.get("h");
+                java.util.List<?> lows = (java.util.List<?>) candleResponse.get("l");
+                java.util.List<?> closes = (java.util.List<?>) candleResponse.get("c");
+                java.util.List<?> volumes = (java.util.List<?>) candleResponse.get("v");
+                java.util.List<?> times = (java.util.List<?>) candleResponse.get("t");
+
+                if (times != null) {
+                    for (int i = 0; i < times.size(); i++) {
+                        long t = Long.parseLong(times.get(i).toString());
+                        BigDecimal o = new BigDecimal(opens.get(i).toString());
+                        BigDecimal h = new BigDecimal(highs.get(i).toString());
+                        BigDecimal l = new BigDecimal(lows.get(i).toString());
+                        BigDecimal c = new BigDecimal(closes.get(i).toString());
+                        long v = Long.parseLong(volumes.get(i).toString());
+                        points.add(new com.example.portfoliomanager.dto.ApiDtos.CandlePoint(t, o, h, l, c, v));
+                    }
+                }
+            } else {
+                log.warn("Finnhub candle response for {} was not ok: {}", symbol, candleResponse);
+            }
+
+            return new com.example.portfoliomanager.dto.ApiDtos.CandleResponse(symbol, res, points);
+        } catch (Exception e) {
+            throw new ExternalApiException("Failed to fetch candle data for " + symbol + ": " + e.getMessage(), e);
+        }
     }
 }

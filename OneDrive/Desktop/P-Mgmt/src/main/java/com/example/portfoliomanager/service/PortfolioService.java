@@ -5,6 +5,10 @@ import com.example.portfoliomanager.dto.ApiDtos.PortfolioRequest;
 import com.example.portfoliomanager.dto.ApiDtos.PortfolioResponse;
 import com.example.portfoliomanager.exception.ResourceNotFoundException;
 import com.example.portfoliomanager.repository.PortfolioRepository;
+import com.example.portfoliomanager.domain.AppUser;
+import com.example.portfoliomanager.repository.AppUserRepository;
+import org.springframework.security.core.context.SecurityContextHolder;
+import org.springframework.security.core.userdetails.UsernameNotFoundException;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -15,18 +19,28 @@ import java.util.List;
 public class PortfolioService {
 
     private final PortfolioRepository repository;
+    private final AppUserRepository appUserRepository;
 
-    public PortfolioService(PortfolioRepository repository) {
+    public PortfolioService(PortfolioRepository repository, AppUserRepository appUserRepository) {
         this.repository = repository;
+        this.appUserRepository = appUserRepository;
+    }
+
+    private AppUser getCurrentUser() {
+        String username = SecurityContextHolder.getContext().getAuthentication().getName();
+        return appUserRepository.findByUsername(username)
+                .orElseThrow(() -> new UsernameNotFoundException("User not found: " + username));
     }
 
     @Transactional
     public List<PortfolioResponse> findAll() {
-        List<Portfolio> list = repository.findAll();
+        AppUser currentUser = getCurrentUser();
+        List<Portfolio> list = repository.findByUser(currentUser);
         if (list.isEmpty()) {
             Portfolio main = new Portfolio();
             main.setName("Main Portfolio");
             main.setDescription("Primary Investment Account");
+            main.setUser(currentUser);
             list = List.of(repository.save(main));
         }
         return list.stream().map(this::toResponse).toList();
@@ -40,6 +54,7 @@ public class PortfolioService {
     public PortfolioResponse create(PortfolioRequest request) {
         Portfolio portfolio = new Portfolio();
         apply(portfolio, request);
+        portfolio.setUser(getCurrentUser());
         return toResponse(repository.save(portfolio));
     }
 
@@ -54,7 +69,7 @@ public class PortfolioService {
     }
 
     public Portfolio getEntity(Long id) {
-        return repository.findById(id)
+        return repository.findByIdAndUser(id, getCurrentUser())
                 .orElseThrow(() -> new ResourceNotFoundException("Portfolio", id));
     }
 

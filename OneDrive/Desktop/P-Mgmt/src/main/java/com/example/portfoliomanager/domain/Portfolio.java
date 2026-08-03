@@ -9,6 +9,9 @@ import jakarta.persistence.Id;
 import jakarta.persistence.OneToMany;
 import jakarta.persistence.PrePersist;
 import jakarta.persistence.PreUpdate;
+import jakarta.persistence.ManyToOne;
+import jakarta.persistence.JoinColumn;
+import jakarta.persistence.FetchType;
 import jakarta.persistence.Table;
 
 import java.time.LocalDateTime;
@@ -44,6 +47,10 @@ public class Portfolio {
     @OneToMany(mappedBy = "portfolio", cascade = CascadeType.ALL, orphanRemoval = true)
     private List<Watchlist> watchlistEntries = new ArrayList<>();
 
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "user_id")
+    private AppUser user;
+
     @PrePersist
     void prePersist() {
         createdAt = LocalDateTime.now();
@@ -65,4 +72,6 @@ public class Portfolio {
     public List<Holding> getHoldings() { return holdings; }
     public List<Transaction> getTransactions() { return transactions; }
     public List<Watchlist> getWatchlistEntries() { return watchlistEntries; }
+    public AppUser getUser() { return user; }
+    public void setUser(AppUser user) { this.user = user; }
 }

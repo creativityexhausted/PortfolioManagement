@@ -24,21 +24,30 @@ public class HoldingService {
 
     private final HoldingRepository repository;
     private final PortfolioService portfolioService;
-    private final YahooFinanceService yahooFinanceService;
     private final FinnhubStockService finnhubStockService;
     private final com.example.portfoliomanager.repository.TransactionRepository transactionRepository;
 
-    public HoldingService(HoldingRepository repository, PortfolioService portfolioService, YahooFinanceService yahooFinanceService, FinnhubStockService finnhubStockService, com.example.portfoliomanager.repository.TransactionRepository transactionRepository) {
+    public HoldingService(HoldingRepository repository, PortfolioService portfolioService, FinnhubStockService finnhubStockService, com.example.portfoliomanager.repository.TransactionRepository transactionRepository) {
         this.repository = repository;
         this.portfolioService = portfolioService;
-        this.yahooFinanceService = yahooFinanceService;
         this.finnhubStockService = finnhubStockService;
         this.transactionRepository = transactionRepository;
     }
 
     @Transactional(readOnly = true)
     public List<HoldingResponse> findAll(Long portfolioId) {
-        List<Holding> holdings = portfolioId == null ? repository.findAll() : repository.findByPortfolioId(portfolioId);
+        List<Holding> holdings;
+        if (portfolioId != null) {
+            portfolioService.getEntity(portfolioId); // validates ownership
+            holdings = repository.findByPortfolioId(portfolioId);
+        } else {
+            List<Long> userPortfolioIds = portfolioService.findAll().stream()
+                    .map(com.example.portfoliomanager.dto.ApiDtos.PortfolioResponse::id).toList();
+            if (userPortfolioIds.isEmpty()) {
+                return java.util.List.of();
+            }
+            holdings = repository.findByPortfolioIdIn(userPortfolioIds);
+        }
         return holdings.stream().map(this::toResponse).toList();
     }
 
@@ -56,7 +65,7 @@ public class HoldingService {
         StockPriceResponse quote = null;
         if (newBatchPrice == null || newBatchPrice.compareTo(BigDecimal.ZERO) <= 0) {
             try {
-                quote = yahooFinanceService.getHistoricalQuote(symbol, request.purchaseDate());
+                quote = finnhubStockService.getHistoricalQuote(symbol, request.purchaseDate());
                 if (quote != null && quote.price() != null) {
                     newBatchPrice = quote.price();
                 }
@@ -95,7 +104,7 @@ public class HoldingService {
 
             // Update live price
             try {
-                StockPriceResponse live = yahooFinanceService.getQuote(symbol);
+                StockPriceResponse live = finnhubStockService.getQuote(symbol);
                 if (live != null && live.price() != null) {
                     existing.setCurrentPrice(live.price());
                     existing.setLastPriceUpdate(LocalDateTime.now());
@@ -106,7 +115,7 @@ public class HoldingService {
         } else {
             // Creating brand new holding
             Holding holding = new Holding();
-            apply(holding, request, newBatchPrice, quote);
+            apply(holding, request, newBatchPrice, null);
             savedHolding = repository.save(holding);
         }
 
@@ -156,26 +165,26 @@ public class HoldingService {
             holding.setAveragePurchasePrice(batchPrice);
         } else {
             try {
-                StockPriceResponse histQuote = yahooFinanceService.getHistoricalQuote(symbol, request.purchaseDate());
+                StockPriceResponse histQuote = finnhubStockService.getHistoricalQuote(symbol, request.purchaseDate());
                 if (histQuote != null && histQuote.price() != null) {
                     holding.setAveragePurchasePrice(histQuote.price());
                     if (companyName == null || companyName.isBlank()) {
                         companyName = histQuote.companyName();
                     }
                 } else {
-                    throw new com.example.portfoliomanager.exception.ExternalApiException("Could not fetch historical price for " + symbol + " on " + request.purchaseDate() + ". Yahoo Finance might be rate-limiting. Please try again later.", null);
+                    throw new com.example.portfoliomanager.exception.ExternalApiException("Could not fetch historical price for " + symbol + " on " + request.purchaseDate() + ". API might be rate-limiting. Please try again later.", null);
                 }
             } catch (com.example.portfoliomanager.exception.ExternalApiException e) {
                 throw e; // rethrow
             } catch (Exception e) {
                 log.warn("Could not fetch historical quote for {}: {}", symbol, e.getMessage());
-                throw new com.example.portfoliomanager.exception.ExternalApiException("Failed to retrieve historical price from Yahoo Finance for " + symbol + ". " + e.getMessage(), e);
+                throw new com.example.portfoliomanager.exception.ExternalApiException("Failed to retrieve historical price from API for " + symbol + ". " + e.getMessage(), e);
             }
         }
 
         // 2. Set Current Price (Live)
         try {
-            StockPriceResponse liveQuote = preFetchedQuote != null ? preFetchedQuote : yahooFinanceService.getQuote(symbol);
+            StockPriceResponse liveQuote = preFetchedQuote != null ? preFetchedQuote : finnhubStockService.getQuote(symbol);
             if (liveQuote != null && liveQuote.price() != null) {
                 holding.setCurrentPrice(liveQuote.price());
                 holding.setLastPriceUpdate(LocalDateTime.now());

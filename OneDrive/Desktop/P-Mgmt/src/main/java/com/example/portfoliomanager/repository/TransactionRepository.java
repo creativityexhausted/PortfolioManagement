@@ -7,4 +7,5 @@ import java.util.List;
 
 public interface TransactionRepository extends JpaRepository<Transaction, Long> {
     List<Transaction> findByPortfolioId(Long portfolioId);
+    List<Transaction> findByPortfolioIdIn(List<Long> portfolioIds);
 }

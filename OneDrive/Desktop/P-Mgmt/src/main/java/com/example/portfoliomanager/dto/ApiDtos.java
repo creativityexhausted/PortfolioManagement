@@ -1,14 +1,15 @@
 package com.example.portfoliomanager.dto;
 
+import java.math.BigDecimal;
+import java.time.LocalDateTime;
+
 import com.example.portfoliomanager.domain.TransactionType;
+
 import io.swagger.v3.oas.annotations.media.Schema;
 import jakarta.validation.constraints.DecimalMin;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
 import jakarta.validation.constraints.Size;
-
-import java.math.BigDecimal;
-import java.time.LocalDateTime;
 
 public final class ApiDtos {
 
@@ -179,6 +180,34 @@ public final class ApiDtos {
             String tokenType,
             @Schema(description = "Token expiration in milliseconds", example = "86400000")
             long expiresInMs
+    ) {
+    }
+
+    @Schema(description = "A single OHLC candlestick point for charting")
+    public record CandlePoint(
+            @Schema(description = "Candle timestamp (epoch seconds)", example = "1732900800")
+            long time,
+            @Schema(description = "Open price", example = "195.10")
+            BigDecimal open,
+            @Schema(description = "High price", example = "198.40")
+            BigDecimal high,
+            @Schema(description = "Low price", example = "194.80")
+            BigDecimal low,
+            @Schema(description = "Close price", example = "197.42")
+            BigDecimal close,
+            @Schema(description = "Trading volume", example = "45213000")
+            long volume
+    ) {
+    }
+
+    @Schema(description = "Historical candlestick series for a symbol")
+    public record CandleResponse(
+            @Schema(description = "Ticker symbol", example = "AAPL")
+            String symbol,
+            @Schema(description = "Candle resolution", example = "D")
+            String resolution,
+            @Schema(description = "Ordered list of candle points, oldest first")
+            java.util.List<CandlePoint> candles
     ) {
     }
 

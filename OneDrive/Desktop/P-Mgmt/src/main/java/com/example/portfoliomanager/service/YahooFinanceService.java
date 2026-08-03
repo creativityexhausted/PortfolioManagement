@@ -1,9 +1,9 @@
 package com.example.portfoliomanager.service;
 
-import com.example.portfoliomanager.dto.ApiDtos.StockPriceResponse;
-import com.example.portfoliomanager.exception.ExternalApiException;
-import com.fasterxml.jackson.databind.JsonNode;
-import com.fasterxml.jackson.databind.ObjectMapper;
+import java.math.BigDecimal;
+import java.net.URI;
+import java.util.Locale;
+
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.http.HttpEntity;
@@ -14,9 +14,10 @@ import org.springframework.stereotype.Service;
 import org.springframework.web.client.RestTemplate;
 import org.springframework.web.util.UriComponentsBuilder;
 
-import java.math.BigDecimal;
-import java.net.URI;
-import java.util.Locale;
+import com.example.portfoliomanager.dto.ApiDtos.StockPriceResponse;
+import com.example.portfoliomanager.exception.ExternalApiException;
+import com.fasterxml.jackson.databind.JsonNode;
+import com.fasterxml.jackson.databind.ObjectMapper;
 
 @Service
 public class YahooFinanceService {
@@ -192,5 +193,94 @@ public class YahooFinanceService {
 
         // Return null if historical quote cannot be fetched instead of falling back to live quote
         return null;
+    }
+
+    /**
+     * Fetches OHLCV candlestick history for a symbol from Yahoo Finance's public chart API
+     * (no API key required). Used as the primary/fallback data source for TradingView-style charts
+     * since Finnhub's free tier restricts the /stock/candle endpoint.
+     *
+     * @param rawSymbol ticker symbol
+     * @param range     Yahoo range string, e.g. "1d", "5d", "1mo", "6mo", "1y"
+     * @param interval  Yahoo interval string, e.g. "5m", "30m", "1d"
+     */
+    public com.example.portfoliomanager.dto.ApiDtos.CandleResponse getCandles(String rawSymbol, String range, String interval) {
+        String symbol = rawSymbol.trim().toUpperCase(Locale.ROOT);
+        String[] hosts = {"query1.finance.yahoo.com", "query2.finance.yahoo.com"};
+        Exception lastError = null;
+
+        for (String host : hosts) {
+            try {
+                URI uri = UriComponentsBuilder
+                        .fromHttpUrl("https://" + host + "/v8/finance/chart/{symbol}")
+                        .queryParam("range", range)
+                        .queryParam("interval", interval)
+                        .buildAndExpand(symbol)
+                        .toUri();
+
+                String[] userAgents = {
+                        "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0.0.0 Safari/537.36",
+                        "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0.0.0 Safari/537.36",
+                        "Mozilla/5.0 (Windows NT 10.0; Win64; x64; rv:123.0) Gecko/20100101 Firefox/123.0",
+                        "Mozilla/5.0 (Macintosh; Intel Mac OS X 10.15; rv:123.0) Gecko/20100101 Firefox/123.0",
+                        "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/17.3 Safari/605.1.15"
+                };
+                String randomAgent = userAgents[new java.util.Random().nextInt(userAgents.length)];
+
+                HttpHeaders headers = new HttpHeaders();
+                headers.set("User-Agent", randomAgent);
+                headers.set("Accept", "text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,*/*;q=0.8");
+                headers.set("Accept-Language", "en-US,en;q=0.5");
+                headers.set("Connection", "keep-alive");
+                HttpEntity<Void> entity = new HttpEntity<>(headers);
+
+                ResponseEntity<String> response = restTemplate.exchange(uri, HttpMethod.GET, entity, String.class);
+
+                if (response.getStatusCode().is2xxSuccessful() && response.getBody() != null) {
+                    JsonNode root = objectMapper.readTree(response.getBody());
+                    JsonNode resultArr = root.path("chart").path("result");
+                    if (resultArr.isArray() && !resultArr.isEmpty()) {
+                        JsonNode resultObj = resultArr.get(0);
+                        JsonNode timestamps = resultObj.path("timestamp");
+                        JsonNode quoteObj = resultObj.path("indicators").path("quote");
+
+                        java.util.List<com.example.portfoliomanager.dto.ApiDtos.CandlePoint> points = new java.util.ArrayList<>();
+                        if (timestamps.isArray() && quoteObj.isArray() && !quoteObj.isEmpty()) {
+                            JsonNode quote0 = quoteObj.get(0);
+                            JsonNode opens = quote0.path("open");
+                            JsonNode highs = quote0.path("high");
+                            JsonNode lows = quote0.path("low");
+                            JsonNode closes = quote0.path("close");
+                            JsonNode volumes = quote0.path("volume");
+
+                            for (int i = 0; i < timestamps.size(); i++) {
+                                JsonNode closeNode = closes.path(i);
+                                if (closeNode.isNull() || !closeNode.isNumber()) {
+                                    continue;
+                                }
+                                long t = timestamps.get(i).asLong();
+                                BigDecimal o = toDecimal(opens.path(i), closeNode);
+                                BigDecimal h = toDecimal(highs.path(i), closeNode);
+                                BigDecimal l = toDecimal(lows.path(i), closeNode);
+                                BigDecimal c = BigDecimal.valueOf(closeNode.asDouble());
+                                long v = volumes.path(i).isNumber() ? volumes.path(i).asLong() : 0L;
+                                points.add(new com.example.portfoliomanager.dto.ApiDtos.CandlePoint(t, o, h, l, c, v));
+                            }
+                        }
+                        return new com.example.portfoliomanager.dto.ApiDtos.CandleResponse(symbol, interval, points);
+                    }
+                }
+            } catch (Exception e) {
+                lastError = e;
+                log.warn("Yahoo candle fetch via {} failed for {}: {}", host, symbol, e.getMessage());
+            }
+        }
+
+        throw new ExternalApiException("Could not fetch candle data for ticker symbol: " + symbol, lastError);
+    }
+
+    private static BigDecimal toDecimal(JsonNode node, JsonNode fallback) {
+        JsonNode use = (node != null && node.isNumber()) ? node : fallback;
+        return BigDecimal.valueOf(use.asDouble());
     }
 }

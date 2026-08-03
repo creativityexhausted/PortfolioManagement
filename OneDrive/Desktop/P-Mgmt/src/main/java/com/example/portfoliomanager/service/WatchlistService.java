@@ -25,9 +25,18 @@ public class WatchlistService {
 
     @Transactional(readOnly = true)
     public List<WatchlistResponse> findAll(Long portfolioId) {
-        List<Watchlist> entries = portfolioId == null
-                ? repository.findAll()
-                : repository.findByPortfolioId(portfolioId);
+        List<Watchlist> entries;
+        if (portfolioId != null) {
+            portfolioService.getEntity(portfolioId); // validates ownership
+            entries = repository.findByPortfolioId(portfolioId);
+        } else {
+            List<Long> userPortfolioIds = portfolioService.findAll().stream()
+                    .map(com.example.portfoliomanager.dto.ApiDtos.PortfolioResponse::id).toList();
+            if (userPortfolioIds.isEmpty()) {
+                return java.util.List.of();
+            }
+            entries = repository.findByPortfolioIdIn(userPortfolioIds);
+        }
         return entries.stream().map(this::toResponse).toList();
     }
 

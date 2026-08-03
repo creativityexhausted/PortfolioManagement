@@ -780,6 +780,7 @@ const CHART_PALETTE = ["#4be277", "#38bdf8", "#818cf8", "#fbbf24", "#f43f5e", "#
 
 function DashboardView({ insights, holdings, watchlist, transactions, onOpenAssistant, onRefreshData }) {
   const [chartPeriod, setChartPeriod] = useState("1M");
+  const [chartSymbol, setChartSymbol] = useState(null);
 
   const totalValue = holdings.reduce((acc, h) => {
     const price = h.currentPrice || h.averagePurchasePrice || 0;
@@ -946,6 +947,7 @@ function DashboardView({ insights, holdings, watchlist, transactions, onOpenAssi
 
   return (
     <div className="space-y-lg">
+      {chartSymbol && <StockChartModal symbol={chartSymbol} onClose={() => setChartSymbol(null)} />}
       {/* HERO KPI CARDS */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-gutter">
         {/* Card 1 */}
@@ -1241,10 +1243,13 @@ function DashboardView({ insights, holdings, watchlist, transactions, onOpenAssi
               </div>
             ) : (
               watchlist.map((item) => (
-                <div key={item.id} className="flex items-center justify-between group cursor-pointer">
+                <div
+                  key={item.id}
+                  className="flex items-center justify-between group cursor-pointer"
+                  onClick={() => setChartSymbol(item.symbol)}
+                >
                   <div className="flex-1">
                     <p className="font-bold group-hover:text-primary transition-colors">{item.symbol}</p>
-                    <p className="text-[10px] text-on-surface-variant">{item.companyName || item.symbol}</p>
                   </div>
                   <div className="w-16 h-6 flex items-center justify-center">
                     <svg className="w-full h-full" viewBox="0 0 100 40">
@@ -1678,16 +1683,155 @@ function TransactionsView({
 }
 
 /* ==========================================================================
+   STOCK CHART MODAL (TradingView-style price chart)
+   ========================================================================== */
+
+const CANDLE_RANGES = [
+  { label: "1D", resolution: "5", days: 1 },
+  { label: "5D", resolution: "30", days: 5 },
+  { label: "1M", resolution: "D", days: 30 },
+  { label: "6M", resolution: "D", days: 182 },
+  { label: "1Y", resolution: "D", days: 365 },
+];
+
+function StockChartModal({ symbol, onClose }) {
+  const [range, setRange] = useState(CANDLE_RANGES[2]);
+  const [candles, setCandles] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState("");
+
+  useEffect(() => {
+    let cancelled = false;
+    setLoading(true);
+    setError("");
+    portfolioApi
+      .getStockCandles(symbol, { resolution: range.resolution, days: range.days })
+      .then((data) => {
+        if (cancelled) return;
+        const points = (data?.candles || []).map((c) => ({
+          time: new Date(c.time * 1000).toLocaleDateString(undefined, { month: "short", day: "numeric" }),
+          close: Number(c.close),
+        }));
+        setCandles(points);
+        if (points.length === 0) {
+          setError("No chart data available for this symbol / range.");
+        }
+      })
+      .catch((err) => {
+        if (cancelled) return;
+        setError(err?.response?.data?.message || "Failed to load chart data.");
+        setCandles([]);
+      })
+      .finally(() => {
+        if (!cancelled) setLoading(false);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [symbol, range]);
+
+  const first = candles[0]?.close;
+  const last = candles[candles.length - 1]?.close;
+  const changePct = first ? (((last - first) / first) * 100).toFixed(2) : null;
+  const isUp = changePct !== null && Number(changePct) >= 0;
+
+  return (
+    <div
+      className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm p-md"
+      onClick={onClose}
+    >
+      <div
+        className="glass-panel w-full max-w-3xl rounded-xl p-lg space-y-md"
+        onClick={(e) => e.stopPropagation()}
+      >
+        <div className="flex items-center justify-between">
+          <div>
+            <h3 className="text-xl font-bold text-primary">{symbol}</h3>
+            {changePct !== null && (
+              <p className={`text-sm font-semibold ${isUp ? "text-primary" : "text-error"}`}>
+                {isUp ? "+" : ""}
+                {changePct}% ({range.label})
+              </p>
+            )}
+          </div>
+          <button
+            type="button"
+            onClick={onClose}
+            className="text-on-surface-variant hover:text-error"
+          >
+            <X className="h-5 w-5" />
+          </button>
+        </div>
+
+        <div className="flex gap-2">
+          {CANDLE_RANGES.map((r) => (
+            <button
+              key={r.label}
+              type="button"
+              onClick={() => setRange(r)}
+              className={`px-sm py-1 rounded-lg text-xs font-bold transition-colors ${
+                r.label === range.label
+                  ? "bg-primary text-on-primary"
+                  : "bg-surface-dim text-on-surface-variant hover:text-on-surface"
+              }`}
+            >
+              {r.label}
+            </button>
+          ))}
+        </div>
+
+        <div className="h-64 w-full">
+          {loading ? (
+            <div className="h-full flex items-center justify-center text-on-surface-variant text-sm">
+              Loading chart...
+            </div>
+          ) : error ? (
+            <div className="h-full flex items-center justify-center text-on-surface-variant text-sm text-center px-md">
+              {error}
+            </div>
+          ) : (
+            <ResponsiveContainer width="100%" height="100%">
+              <AreaChart data={candles} margin={{ top: 8, right: 8, left: 0, bottom: 0 }}>
+                <defs>
+                  <linearGradient id="chartFill" x1="0" y1="0" x2="0" y2="1">
+                    <stop offset="5%" stopColor={isUp ? "#4be277" : "#f87171"} stopOpacity={0.4} />
+                    <stop offset="95%" stopColor={isUp ? "#4be277" : "#f87171"} stopOpacity={0} />
+                  </linearGradient>
+                </defs>
+                <XAxis dataKey="time" tick={{ fontSize: 10 }} minTickGap={30} />
+                <YAxis domain={["auto", "auto"]} tick={{ fontSize: 10 }} width={50} />
+                <RechartsTooltip />
+                <Area
+                  type="monotone"
+                  dataKey="close"
+                  stroke={isUp ? "#4be277" : "#f87171"}
+                  fill="url(#chartFill)"
+                  strokeWidth={2}
+                />
+              </AreaChart>
+            </ResponsiveContainer>
+          )}
+        </div>
+      </div>
+    </div>
+  );
+}
+
+/* ==========================================================================
    WATCHLIST VIEW
    ========================================================================== */
 
 function WatchlistView({ watchlist, watchlistForm, setWatchlistForm, onSaveWatchlist, onDeleteWatchlist }) {
+  const [chartSymbol, setChartSymbol] = useState(null);
+
   return (
     <div className="space-y-lg">
       <div>
         <h2 className="font-headline-md text-headline-md font-bold">Watchlist</h2>
         <p className="text-body-sm text-on-surface-variant">Track target prices for stocks</p>
       </div>
+
+      {chartSymbol && <StockChartModal symbol={chartSymbol} onClose={() => setChartSymbol(null)} />}
 
       <div className="grid grid-cols-1 md:grid-cols-3 gap-gutter">
         <form onSubmit={onSaveWatchlist} className="glass-panel p-md rounded-xl space-y-sm">
@@ -1701,16 +1845,6 @@ function WatchlistView({ watchlist, watchlistForm, setWatchlistForm, onSaveWatch
               placeholder="e.g. RELIANCE.NS, AAPL"
               className="w-full bg-surface-dim border border-outline-variant/60 rounded-lg p-sm text-body-sm uppercase"
               required
-            />
-          </div>
-          <div>
-            <label className="text-xs font-label-caps text-on-surface-variant">Company Name</label>
-            <input
-              type="text"
-              value={watchlistForm.companyName}
-              onChange={(e) => setWatchlistForm((w) => ({ ...w, companyName: e.target.value }))}
-              placeholder="e.g. Reliance Industries"
-              className="w-full bg-surface-dim border border-outline-variant/60 rounded-lg p-sm text-body-sm"
             />
           </div>
           <div>
@@ -1742,11 +1876,11 @@ function WatchlistView({ watchlist, watchlistForm, setWatchlistForm, onSaveWatch
               watchlist.map((item) => (
                 <div
                   key={item.id}
-                  className="p-md bg-surface-dim rounded-xl border border-outline-variant/40 flex items-center justify-between"
+                  className="p-md bg-surface-dim rounded-xl border border-outline-variant/40 flex items-center justify-between cursor-pointer hover:border-primary/60 transition-colors"
+                  onClick={() => setChartSymbol(item.symbol)}
                 >
                   <div>
                     <p className="font-bold text-base text-primary">{item.symbol}</p>
-                    <p className="text-xs text-on-surface-variant">{item.companyName || item.symbol}</p>
                     <p className="text-xs text-on-surface mt-1">
                       Target: {formatCurrency(item.targetPrice || 0, null, item.symbol)}
                     </p>
@@ -1754,7 +1888,10 @@ function WatchlistView({ watchlist, watchlistForm, setWatchlistForm, onSaveWatch
                   <div className="text-right">
                     <button
                       type="button"
-                      onClick={() => onDeleteWatchlist(item.id)}
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        onDeleteWatchlist(item.id);
+                      }}
                       className="text-xs text-error hover:underline"
                     >
                       Remove

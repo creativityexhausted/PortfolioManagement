@@ -19,17 +19,17 @@ public class MarketDataScheduler {
 
     private final HoldingRepository holdingRepository;
     private final WatchlistRepository watchlistRepository;
-    private final YahooFinanceService yahooFinanceService;
+    private final FinnhubStockService finnhubStockService;
     private final NewsService newsService;
 
     public MarketDataScheduler(
             HoldingRepository holdingRepository,
             WatchlistRepository watchlistRepository,
-            YahooFinanceService yahooFinanceService,
+            FinnhubStockService finnhubStockService,
             NewsService newsService) {
         this.holdingRepository = holdingRepository;
         this.watchlistRepository = watchlistRepository;
-        this.yahooFinanceService = yahooFinanceService;
+        this.finnhubStockService = finnhubStockService;
         this.newsService = newsService;
     }
 
@@ -58,7 +58,7 @@ public class MarketDataScheduler {
 
     private void updateHolding(Holding holding) {
         try {
-            StockPriceResponse quote = yahooFinanceService.getQuote(holding.getSymbol());
+            StockPriceResponse quote = finnhubStockService.getQuote(holding.getSymbol());
             holding.setCurrentPrice(quote.price());
             holding.setLastPriceUpdate(LocalDateTime.now());
             if (holding.getCompanyName() == null || holding.getCompanyName().isBlank()) {
@@ -72,7 +72,7 @@ public class MarketDataScheduler {
 
     private void updateWatchlist(Watchlist entry) {
         try {
-            StockPriceResponse quote = yahooFinanceService.getQuote(entry.getSymbol());
+            StockPriceResponse quote = finnhubStockService.getQuote(entry.getSymbol());
             entry.setCurrentPrice(quote.price());
             entry.setLastPriceUpdate(LocalDateTime.now());
             if (entry.getCompanyName() == null || entry.getCompanyName().isBlank()) {

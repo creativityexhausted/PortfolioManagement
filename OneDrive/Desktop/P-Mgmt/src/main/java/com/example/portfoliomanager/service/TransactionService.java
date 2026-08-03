@@ -25,9 +25,18 @@ public class TransactionService {
 
     @Transactional(readOnly = true)
     public List<TransactionResponse> findAll(Long portfolioId) {
-        List<Transaction> transactions = portfolioId == null
-                ? repository.findAll()
-                : repository.findByPortfolioId(portfolioId);
+        List<Transaction> transactions;
+        if (portfolioId != null) {
+            portfolioService.getEntity(portfolioId); // validates ownership
+            transactions = repository.findByPortfolioId(portfolioId);
+        } else {
+            List<Long> userPortfolioIds = portfolioService.findAll().stream()
+                    .map(com.example.portfoliomanager.dto.ApiDtos.PortfolioResponse::id).toList();
+            if (userPortfolioIds.isEmpty()) {
+                return java.util.List.of();
+            }
+            transactions = repository.findByPortfolioIdIn(userPortfolioIds);
+        }
         return transactions.stream().map(this::toResponse).toList();
     }
 

@@ -1,5 +1,6 @@
 package com.example.portfoliomanager.controller;
 
+import com.example.portfoliomanager.dto.ApiDtos.CandleResponse;
 import com.example.portfoliomanager.dto.ApiDtos.NewsArticle;
 import com.example.portfoliomanager.dto.ApiDtos.StockPriceResponse;
 import com.example.portfoliomanager.exception.ApiError;
@@ -19,6 +20,7 @@ import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
 import java.util.List;
@@ -57,6 +59,50 @@ public class MarketDataController {
             @Parameter(description = "Stock ticker symbol", example = "AAPL", required = true)
             @PathVariable String symbol) {
         return yahooFinanceService.getQuote(symbol);
+    }
+
+    @GetMapping("/stocks/{symbol}/candles")
+        @Operation(
+            summary = "Get stock candlestick history",
+            description = "Fetches OHLCV candlestick history for a symbol, used to render a TradingView-style price chart. "
+                    + "Uses Yahoo Finance's free chart API (no key required); falls back to Finnhub if configured and Yahoo fails.")
+        @ApiResponses({
+            @ApiResponse(responseCode = "200", description = "Candle data fetched successfully"),
+            @ApiResponse(responseCode = "502", description = "External market API error",
+                content = @Content(schema = @Schema(implementation = ApiError.class)))
+        })
+        public CandleResponse getStockCandles(
+            @Parameter(description = "Stock ticker symbol", example = "AAPL", required = true)
+            @PathVariable String symbol,
+            @Parameter(description = "Candle resolution: 1,5,15,30,60,D,W,M", example = "D")
+            @RequestParam(required = false, defaultValue = "D") String resolution,
+            @Parameter(description = "How many days of history to fetch", example = "30")
+            @RequestParam(required = false, defaultValue = "30") int days) {
+        String interval;
+        String range;
+        if ("1".equals(resolution) || "5".equals(resolution) || "15".equals(resolution) || "30".equals(resolution) || "60".equals(resolution)) {
+            interval = resolution + "m";
+            if ("60".equals(resolution)) {
+                interval = "60m";
+            }
+            range = days <= 1 ? "1d" : "5d";
+        } else if ("W".equalsIgnoreCase(resolution)) {
+            interval = "1wk";
+            range = "2y";
+        } else if ("M".equalsIgnoreCase(resolution)) {
+            interval = "1mo";
+            range = "5y";
+        } else {
+            interval = "1d";
+            range = days <= 30 ? "1mo" : days <= 182 ? "6mo" : days <= 365 ? "1y" : "2y";
+        }
+
+        try {
+            return yahooFinanceService.getCandles(symbol, range, interval);
+        } catch (Exception yahooEx) {
+            log.warn("Yahoo candle fetch failed for {}, trying Finnhub: {}", symbol, yahooEx.getMessage());
+            return finnhubStockService.getCandles(symbol, resolution, days);
+        }
     }
 
     @GetMapping("/market/indices")

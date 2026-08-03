@@ -79,6 +79,12 @@ export const portfolioApi = {
     const { data } = await apiClient.get(`/api/stocks/${encodeURIComponent(symbol)}`);
     return data;
   },
+  getStockCandles: async (symbol, { resolution = "D", days = 30 } = {}) => {
+    const { data } = await apiClient.get(`/api/stocks/${encodeURIComponent(symbol)}/candles`, {
+      params: { resolution, days },
+    });
+    return data;
+  },
   getMarketIndices: async () => {
     const { data } = await apiClient.get("/api/market/indices");
     return data;
