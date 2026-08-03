@@ -26,6 +26,7 @@ public class GroqProperties {
         private String baseUrl = "https://api.groq.com/openai/v1";
         private String apiKey;
         private String model = "llama-3.1-8b-instant";
+        private String newsModel = "llama-3.3-70b-versatile";
         private double temperature = 0.2;
 
         public String getBaseUrl() {
@@ -50,6 +51,14 @@ public class GroqProperties {
 
         public void setModel(String model) {
             this.model = model;
+        }
+
+        public String getNewsModel() {
+            return newsModel;
+        }
+
+        public void setNewsModel(String newsModel) {
+            this.newsModel = newsModel;
         }
 
         public double getTemperature() {

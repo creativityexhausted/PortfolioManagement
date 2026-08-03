@@ -75,6 +75,12 @@ export const portfolioApi = {
     const { data } = await apiClient.post("/api/news/refresh");
     return data;
   },
+  getNewsPortfolioBrief: async (portfolioId = null) => {
+    const { data } = await apiClient.get("/api/news/portfolio-brief", {
+      params: portfolioId ? { portfolioId } : {},
+    });
+    return data;
+  },
   getStockPrice: async (symbol) => {
     const { data } = await apiClient.get(`/api/stocks/${encodeURIComponent(symbol)}`);
     return data;

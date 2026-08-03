@@ -1,15 +1,17 @@
 package com.example.portfoliomanager.service;
 
-import com.example.portfoliomanager.dto.ApiDtos.NewsArticle;
-import com.example.portfoliomanager.exception.ExternalApiException;
-import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
+import java.util.List;
+import java.util.concurrent.atomic.AtomicReference;
+
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 import org.springframework.util.StringUtils;
 import org.springframework.web.client.RestClient;
 
-import java.util.List;
-import java.util.concurrent.atomic.AtomicReference;
+import com.example.portfoliomanager.chatbot.NewsAiEnrichmentService;
+import com.example.portfoliomanager.dto.ApiDtos.NewsArticle;
+import com.example.portfoliomanager.exception.ExternalApiException;
+import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 
 @Service
 public class NewsService {
@@ -17,16 +19,19 @@ public class NewsService {
     private final RestClient restClient;
     private final String apiKey;
     private final String query;
+    private final NewsAiEnrichmentService aiEnrichmentService;
     private final AtomicReference<List<NewsArticle>> cachedArticles = new AtomicReference<>(List.of());
 
     public NewsService(
             RestClient.Builder builder,
             @Value("${news.api.base-url:https://www.alphavantage.co}") String baseUrl,
             @Value("${news.api.key:}") String apiKey,
-            @Value("${news.api.query:financial_markets}") String query) {
+            @Value("${news.api.query:financial_markets}") String query,
+            NewsAiEnrichmentService aiEnrichmentService) {
         this.restClient = builder.baseUrl(baseUrl).build();
         this.apiKey = apiKey;
         this.query = query;
+        this.aiEnrichmentService = aiEnrichmentService;
     }
 
     public List<NewsArticle> getCachedArticles() {
@@ -52,8 +57,11 @@ public class NewsService {
             List<NewsArticle> articles = response == null || response.feed() == null
                     ? List.of()
                     : response.feed().stream().map(this::toArticle).toList();
-            cachedArticles.set(articles);
-            return articles;
+
+            // Enrich with AI-driven sentiment/impact/summary/related tickers using Groq's stronger model.
+            List<NewsArticle> enriched = aiEnrichmentService.enrich(articles);
+            cachedArticles.set(enriched);
+            return enriched;
         } catch (RuntimeException exception) {
             throw new ExternalApiException("News API request failed", exception);
         }
@@ -72,7 +80,8 @@ public class NewsService {
                            publishedAt.substring(11, 13) + ":" + publishedAt.substring(13, 15) + "Z";
         }
         return new NewsArticle(article.title(), article.summary(), article.url(),
-                article.banner_image(), publishedAt, article.source());
+                article.banner_image(), publishedAt, article.source(),
+                null, null, java.util.List.of(), java.util.List.of());
     }
 
     @JsonIgnoreProperties(ignoreUnknown = true)

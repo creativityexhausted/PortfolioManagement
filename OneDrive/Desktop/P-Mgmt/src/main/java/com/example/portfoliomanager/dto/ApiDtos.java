@@ -2,6 +2,7 @@ package com.example.portfoliomanager.dto;
 
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
+import java.util.List;
 
 import com.example.portfoliomanager.domain.TransactionType;
 
@@ -237,7 +238,26 @@ public final class ApiDtos {
             @Schema(description = "Publish time", example = "2026-07-30T09:15:00Z")
             String publishedAt,
             @Schema(description = "Publisher name", example = "Reuters")
-            String source
+            String source,
+            @Schema(description = "AI-classified sentiment", example = "BULLISH", allowableValues = {"BULLISH", "BEARISH", "NEUTRAL"})
+            String sentiment,
+            @Schema(description = "AI-classified market impact level", example = "HIGH", allowableValues = {"HIGH", "MEDIUM", "LOW"})
+            String impact,
+            @Schema(description = "AI-generated key takeaway bullet points")
+            List<String> aiSummary,
+            @Schema(description = "Tickers the AI identified as related to this article")
+            List<String> relatedSymbols
+    ) {
+    }
+
+    @Schema(description = "AI-generated, portfolio-aware news brief")
+    public record NewsPortfolioBrief(
+            @Schema(description = "Narrative brief explaining how current news affects the portfolio")
+            String brief,
+            @Schema(description = "Groq model used to generate the brief", example = "llama-3.3-70b-versatile")
+            String model,
+            @Schema(description = "Generation timestamp", example = "2026-08-03T10:15:00")
+            LocalDateTime generatedAt
     ) {
     }
 

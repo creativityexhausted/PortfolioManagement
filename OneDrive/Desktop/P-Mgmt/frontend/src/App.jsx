@@ -600,6 +600,7 @@ export default function App() {
                   quoteSymbol={quoteSymbol}
                   setQuoteSymbol={setQuoteSymbol}
                   onLookupQuote={lookupQuote}
+                  portfolioId={selectedPortfolioId}
                 />
               }
             />
@@ -1926,21 +1927,99 @@ function WatchlistView({ watchlist, watchlistForm, setWatchlistForm, onSaveWatch
    MARKET & NEWS VIEW
    ========================================================================== */
 
-function MarketView({ news, onRefreshNews, quote, quoteLoading, quoteSymbol, setQuoteSymbol, onLookupQuote }) {
+const SENTIMENT_STYLES = {
+  BULLISH: { label: "Bullish", dot: "bg-primary", text: "text-primary", badge: "bg-primary/10 text-primary border-primary/20" },
+  BEARISH: { label: "Bearish", dot: "bg-error", text: "text-error", badge: "bg-error/10 text-error border-error/20" },
+  NEUTRAL: { label: "Neutral", dot: "bg-on-surface-variant", text: "text-on-surface-variant", badge: "bg-surface-variant text-on-surface-variant border-outline-variant/40" },
+};
+
+const IMPACT_STYLES = {
+  HIGH: "bg-error/10 text-error border-error/20",
+  MEDIUM: "bg-primary/10 text-primary border-primary/20",
+  LOW: "bg-surface-variant text-on-surface-variant border-outline-variant/40",
+};
+
+const NEWS_FILTERS = [
+  { key: "ALL", label: "All News" },
+  { key: "BULLISH", label: "Bullish" },
+  { key: "BEARISH", label: "Bearish" },
+  { key: "HIGH", label: "High Impact" },
+];
+
+function MarketView({ news, onRefreshNews, quote, quoteLoading, quoteSymbol, setQuoteSymbol, onLookupQuote, portfolioId }) {
+  const [activeFilter, setActiveFilter] = useState("ALL");
+  const [brief, setBrief] = useState(null);
+  const [briefLoading, setBriefLoading] = useState(false);
+  const [briefError, setBriefError] = useState("");
+  const [expandedIdx, setExpandedIdx] = useState(null);
+
+  const loadBrief = useCallback(async () => {
+    setBriefLoading(true);
+    setBriefError("");
+    try {
+      const data = await portfolioApi.getNewsPortfolioBrief(portfolioId);
+      setBrief(data);
+    } catch (err) {
+      setBriefError(err?.response?.data?.message || "AI brief unavailable. Configure GROQ_API_KEY to enable it.");
+    } finally {
+      setBriefLoading(false);
+    }
+  }, [portfolioId]);
+
+  useEffect(() => {
+    if (news && news.length > 0) {
+      loadBrief();
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [news?.length, portfolioId]);
+
+  const filteredNews = useMemo(() => {
+    if (!news) return [];
+    if (activeFilter === "ALL") return news;
+    if (activeFilter === "HIGH") return news.filter((n) => n.impact === "HIGH");
+    return news.filter((n) => (n.sentiment || "NEUTRAL") === activeFilter);
+  }, [news, activeFilter]);
+
   return (
     <div className="space-y-lg">
-      <div className="flex justify-between items-center">
+      <div className="flex flex-col md:flex-row md:items-end justify-between gap-md">
         <div>
-          <h2 className="font-headline-md text-headline-md font-bold">Financial News & Live Quotes</h2>
-          <p className="text-body-sm text-on-surface-variant">Powered by Yahoo Finance & Alpha Vantage</p>
+          <h2 className="font-headline-md text-headline-md font-bold">Market News</h2>
+          <p className="text-body-sm text-on-surface-variant">
+            AI-analyzed headlines, context-aware to your portfolio &middot; Powered by Groq & Alpha Vantage
+          </p>
         </div>
         <button
           type="button"
           onClick={onRefreshNews}
-          className="flex items-center gap-2 bg-primary text-on-primary font-bold px-md py-sm rounded-lg text-xs hover:brightness-110"
+          className="flex items-center gap-2 bg-primary text-on-primary font-bold px-md py-sm rounded-lg text-xs hover:brightness-110 self-start md:self-auto"
         >
           <RefreshCw className="h-4 w-4" /> Refresh News
         </button>
+      </div>
+
+      {/* AI Portfolio Brief */}
+      <div className="glass-panel rounded-xl p-md border-l-4 border-primary">
+        <div className="flex items-center gap-2 mb-sm">
+          <Sparkles className="h-4 w-4 text-primary" />
+          <h3 className="text-[11px] font-label-caps text-primary tracking-wide">AI PORTFOLIO BRIEF</h3>
+          {brief?.model && (
+            <span className="ml-auto text-[10px] text-on-surface-variant">{brief.model}</span>
+          )}
+        </div>
+        {briefLoading ? (
+          <div className="flex items-center gap-xs text-xs text-on-surface-variant animate-pulse">
+            <Bot className="h-4 w-4" /> Analyzing latest headlines against your holdings...
+          </div>
+        ) : briefError ? (
+          <p className="text-xs text-on-surface-variant italic">{briefError}</p>
+        ) : brief ? (
+          <p className="text-body-sm text-on-surface leading-relaxed whitespace-pre-wrap">{brief.brief}</p>
+        ) : (
+          <p className="text-xs text-on-surface-variant italic">
+            Refresh the news feed to generate a portfolio-aware AI brief.
+          </p>
+        )}
       </div>
 
       {/* Quote Lookup Bar */}
@@ -1975,40 +2054,131 @@ function MarketView({ news, onRefreshNews, quote, quoteLoading, quoteSymbol, set
         </div>
       )}
 
+      {/* Filter Chips */}
+      <div className="flex items-center gap-sm overflow-x-auto pb-1 no-scrollbar">
+        {NEWS_FILTERS.map((f) => (
+          <button
+            key={f.key}
+            type="button"
+            onClick={() => setActiveFilter(f.key)}
+            className={`whitespace-nowrap px-lg py-2 rounded-full text-body-sm font-bold transition-all border ${
+              activeFilter === f.key
+                ? "bg-primary text-on-primary border-primary shadow-[0_0_12px_rgba(74,222,128,0.3)]"
+                : "bg-surface-container-high text-on-surface-variant border-outline-variant hover:border-primary/50"
+            }`}
+          >
+            {f.label}
+          </button>
+        ))}
+      </div>
+
       {/* News Cards */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-gutter">
-        {news.length === 0 ? (
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-gutter">
+        {filteredNews.length === 0 ? (
           <div className="col-span-full py-xl text-center text-on-surface-variant italic">
-            No news articles available. Configure NEWS_API_KEY in your .env file to fetch news.
+            {news.length === 0
+              ? "No news articles available. Configure NEWS_API_KEY in your .env file to fetch news."
+              : "No articles match this filter."}
           </div>
         ) : (
-          news.map((item, idx) => (
-            <a
-              key={idx}
-              href={item.url}
-              target="_blank"
-              rel="noreferrer"
-              className="glass-panel p-md rounded-xl group hover:border-primary/50 transition-all flex flex-col justify-between"
-            >
-              <div>
-                {item.urlToImage && (
-                  <img
-                    src={item.urlToImage}
-                    alt={item.title}
-                    className="w-full h-36 object-cover rounded-lg mb-sm"
-                  />
-                )}
-                <h4 className="font-bold text-on-surface text-base group-hover:text-primary transition-colors line-clamp-2">
-                  {item.title}
-                </h4>
-                <p className="text-xs text-on-surface-variant mt-xs line-clamp-3">{item.description}</p>
-              </div>
-              <div className="mt-md pt-xs border-t border-outline-variant/30 flex justify-between text-[11px] text-on-surface-variant">
-                <span>{item.source}</span>
-                <span>{formatDateTime(item.publishedAt)}</span>
-              </div>
-            </a>
-          ))
+          filteredNews.map((item, idx) => {
+            const sentiment = SENTIMENT_STYLES[item.sentiment] || SENTIMENT_STYLES.NEUTRAL;
+            const impactClass = IMPACT_STYLES[item.impact] || IMPACT_STYLES.LOW;
+            const isExpanded = expandedIdx === idx;
+            return (
+              <article
+                key={idx}
+                className="glass-panel rounded-xl overflow-hidden group hover:border-primary/50 transition-all flex flex-col"
+              >
+                <div className="flex flex-col md:flex-row">
+                  {item.urlToImage && (
+                    <div className="md:w-1/3 relative h-40 md:h-auto overflow-hidden shrink-0">
+                      <img
+                        src={item.urlToImage}
+                        alt={item.title}
+                        className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
+                      />
+                      <div className="absolute top-2 left-2 flex items-center gap-1 bg-surface/80 backdrop-blur px-2 py-1 rounded-md border border-outline-variant/50">
+                        <span className={`w-2 h-2 rounded-full ${sentiment.dot}`} />
+                        <span className={`text-[10px] font-bold tracking-wide ${sentiment.text}`}>
+                          {sentiment.label.toUpperCase()}
+                        </span>
+                      </div>
+                    </div>
+                  )}
+                  <div className="p-md flex-1 flex flex-col justify-between min-w-0">
+                    <div>
+                      <div className="flex items-center justify-between mb-xs gap-2">
+                        <div className="flex gap-1 flex-wrap">
+                          {item.impact && (
+                            <span className={`text-[10px] font-label-caps px-2 py-0.5 rounded border uppercase ${impactClass}`}>
+                              {item.impact} Impact
+                            </span>
+                          )}
+                          {!item.urlToImage && (
+                            <span className={`text-[10px] font-label-caps px-2 py-0.5 rounded border uppercase ${sentiment.badge}`}>
+                              {sentiment.label}
+                            </span>
+                          )}
+                        </div>
+                        <span className="text-[11px] text-on-surface-variant shrink-0">
+                          {formatDateTime(item.publishedAt)}
+                        </span>
+                      </div>
+                      <a
+                        href={item.url}
+                        target="_blank"
+                        rel="noreferrer"
+                        className="font-bold text-on-surface text-base group-hover:text-primary transition-colors line-clamp-2 block"
+                      >
+                        {item.title}
+                      </a>
+                      <p className="text-xs text-on-surface-variant mt-xs line-clamp-2">{item.description}</p>
+                    </div>
+
+                    {item.aiSummary && item.aiSummary.length > 0 && (
+                      <div className="mt-sm">
+                        <button
+                          type="button"
+                          onClick={() => setExpandedIdx(isExpanded ? null : idx)}
+                          className="flex items-center gap-1 text-[11px] font-bold text-primary hover:underline"
+                        >
+                          <Sparkles className="h-3 w-3" />
+                          {isExpanded ? "Hide AI Summary" : "Show AI Summary"}
+                        </button>
+                        {isExpanded && (
+                          <ul className="mt-xs space-y-1 border-l-2 border-primary/40 pl-sm">
+                            {item.aiSummary.map((point, i) => (
+                              <li key={i} className="text-[12px] text-on-surface-variant flex gap-1">
+                                <span className="text-primary">•</span>
+                                <span>{point}</span>
+                              </li>
+                            ))}
+                          </ul>
+                        )}
+                      </div>
+                    )}
+
+                    <div className="mt-sm pt-xs border-t border-outline-variant/30 flex items-center justify-between gap-2 flex-wrap">
+                      <span className="text-[11px] text-on-surface-variant">{item.source}</span>
+                      {item.relatedSymbols && item.relatedSymbols.length > 0 && (
+                        <div className="flex gap-1 flex-wrap">
+                          {item.relatedSymbols.map((sym) => (
+                            <span
+                              key={sym}
+                              className="text-[10px] font-bold font-data-mono px-2 py-0.5 rounded-full bg-surface-container-high border border-outline-variant/50"
+                            >
+                              {sym}
+                            </span>
+                          ))}
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                </div>
+              </article>
+            );
+          })
         )}
       </div>
     </div>

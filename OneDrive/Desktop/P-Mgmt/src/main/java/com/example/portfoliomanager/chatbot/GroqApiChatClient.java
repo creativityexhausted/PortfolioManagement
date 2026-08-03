@@ -1,11 +1,12 @@
 package com.example.portfoliomanager.chatbot;
 
-import com.example.portfoliomanager.exception.ExternalApiException;
+import java.util.List;
+
 import org.springframework.http.MediaType;
 import org.springframework.stereotype.Component;
 import org.springframework.web.client.RestClient;
 
-import java.util.List;
+import com.example.portfoliomanager.exception.ExternalApiException;
 
 @Component
 public class GroqApiChatClient implements GroqChatClient {
@@ -22,17 +23,26 @@ public class GroqApiChatClient implements GroqChatClient {
 
     @Override
     public String chat(String systemPrompt, String userPrompt) {
+        return chat(systemPrompt, userPrompt, properties.getGroq().getModel());
+    }
+
+    @Override
+    public String chat(String systemPrompt, String userPrompt, String modelOverride) {
         String apiKey = properties.getGroq().getApiKey();
         if (apiKey == null || apiKey.isBlank()) {
             throw new IllegalStateException("GROQ_API_KEY is not configured");
         }
+
+        String model = (modelOverride == null || modelOverride.isBlank())
+                ? properties.getGroq().getModel()
+                : modelOverride;
 
         GroqChatResponse response = restClient.post()
                 .uri("/chat/completions")
                 .contentType(MediaType.APPLICATION_JSON)
                 .header("Authorization", "Bearer " + apiKey)
                 .body(new GroqChatRequest(
-                        properties.getGroq().getModel(),
+                        model,
                         List.of(
                                 new GroqMessage("system", systemPrompt),
                                 new GroqMessage("user", userPrompt)

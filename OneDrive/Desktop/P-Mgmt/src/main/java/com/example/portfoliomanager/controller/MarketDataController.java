@@ -1,7 +1,10 @@
 package com.example.portfoliomanager.controller;
 
+import com.example.portfoliomanager.chatbot.NewsAiEnrichmentService;
+import com.example.portfoliomanager.chatbot.PortfolioAssistantContextService;
 import com.example.portfoliomanager.dto.ApiDtos.CandleResponse;
 import com.example.portfoliomanager.dto.ApiDtos.NewsArticle;
+import com.example.portfoliomanager.dto.ApiDtos.NewsPortfolioBrief;
 import com.example.portfoliomanager.dto.ApiDtos.StockPriceResponse;
 import com.example.portfoliomanager.exception.ApiError;
 import com.example.portfoliomanager.service.FinnhubStockService;
@@ -35,11 +38,20 @@ public class MarketDataController {
     private final YahooFinanceService yahooFinanceService;
     private final FinnhubStockService finnhubStockService;
     private final NewsService newsService;
+    private final NewsAiEnrichmentService newsAiEnrichmentService;
+    private final PortfolioAssistantContextService portfolioAssistantContextService;
 
-    public MarketDataController(YahooFinanceService yahooFinanceService, FinnhubStockService finnhubStockService, NewsService newsService) {
+    public MarketDataController(
+            YahooFinanceService yahooFinanceService,
+            FinnhubStockService finnhubStockService,
+            NewsService newsService,
+            NewsAiEnrichmentService newsAiEnrichmentService,
+            PortfolioAssistantContextService portfolioAssistantContextService) {
         this.yahooFinanceService = yahooFinanceService;
         this.finnhubStockService = finnhubStockService;
         this.newsService = newsService;
+        this.newsAiEnrichmentService = newsAiEnrichmentService;
+        this.portfolioAssistantContextService = portfolioAssistantContextService;
     }
 
     @GetMapping("/stocks/{symbol}")
@@ -172,5 +184,38 @@ public class MarketDataController {
         })
     public List<NewsArticle> refreshNews() {
         return newsService.refresh();
+    }
+
+    @GetMapping("/news/portfolio-brief")
+        @Operation(
+            summary = "Get AI-generated, portfolio-aware news brief",
+            description = "Uses Groq's stronger model to explain how the latest market news relates to the user's holdings.")
+        @ApiResponses({
+            @ApiResponse(responseCode = "200", description = "Brief generated successfully"),
+            @ApiResponse(responseCode = "500", description = "Unexpected server error",
+                content = @Content(schema = @Schema(implementation = ApiError.class))),
+            @ApiResponse(responseCode = "502", description = "External AI provider error",
+                content = @Content(schema = @Schema(implementation = ApiError.class)))
+        })
+    public NewsPortfolioBrief getPortfolioNewsBrief(
+            @Parameter(description = "Optional portfolio ID to scope the brief to", example = "1")
+            @RequestParam(required = false) Long portfolioId) {
+        List<NewsArticle> articles = newsService.getCachedArticles();
+        String portfolioContext;
+        try {
+            portfolioContext = portfolioAssistantContextService.build(portfolioId).llmContext();
+        } catch (Exception e) {
+            portfolioContext = "No portfolio context available.";
+        }
+
+        String brief;
+        try {
+            brief = newsAiEnrichmentService.generatePortfolioBrief(articles, portfolioContext);
+        } catch (Exception e) {
+            log.warn("Portfolio news brief generation failed: {}", e.getMessage());
+            brief = "AI news brief is unavailable right now. Please configure GROQ_API_KEY or try again later.";
+        }
+
+        return new NewsPortfolioBrief(brief, "llama-3.3-70b-versatile", java.time.LocalDateTime.now());
     }
 }
