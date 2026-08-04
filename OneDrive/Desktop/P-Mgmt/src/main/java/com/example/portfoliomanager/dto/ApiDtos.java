@@ -77,7 +77,11 @@ public final class ApiDtos {
             @Schema(description = "Purchase date of stock", example = "2026-01-15")
             java.time.LocalDate purchaseDate,
             @Schema(description = "Owning portfolio ID", example = "1")
-            Long portfolioId
+            Long portfolioId,
+            @Schema(description = "Which provider supplied the current live price", example = "FINNHUB", allowableValues = {"FINNHUB", "ALPHA_VANTAGE", "YAHOO", "NONE"})
+            String priceSource,
+            @Schema(description = "Human-readable notes on how prices were resolved (which providers worked/failed)")
+            List<String> priceNotes
     ) {
     }
 

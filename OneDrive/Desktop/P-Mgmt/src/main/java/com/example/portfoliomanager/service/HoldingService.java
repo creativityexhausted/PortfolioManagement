@@ -1,20 +1,23 @@
 package com.example.portfoliomanager.service;
 
-import com.example.portfoliomanager.domain.Holding;
-import com.example.portfoliomanager.dto.ApiDtos.HoldingRequest;
-import com.example.portfoliomanager.dto.ApiDtos.HoldingResponse;
-import com.example.portfoliomanager.dto.ApiDtos.StockPriceResponse;
-import com.example.portfoliomanager.exception.ResourceNotFoundException;
-import com.example.portfoliomanager.repository.HoldingRepository;
+import java.math.BigDecimal;
+import java.time.LocalDateTime;
+import java.util.ArrayList;
+import java.util.List;
+import java.util.Locale;
+
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
-import java.math.BigDecimal;
-import java.time.LocalDateTime;
-import java.util.List;
-import java.util.Locale;
+import com.example.portfoliomanager.domain.Holding;
+import com.example.portfoliomanager.dto.ApiDtos.HoldingRequest;
+import com.example.portfoliomanager.dto.ApiDtos.HoldingResponse;
+import com.example.portfoliomanager.exception.ExternalApiException;
+import com.example.portfoliomanager.exception.ResourceNotFoundException;
+import com.example.portfoliomanager.repository.HoldingRepository;
+import com.example.portfoliomanager.service.PriceResolutionService.PriceLookupResult;
 
 @Service
 @Transactional
@@ -24,15 +27,17 @@ public class HoldingService {
 
     private final HoldingRepository repository;
     private final PortfolioService portfolioService;
-    private final FinnhubStockService finnhubStockService;
-    private final AlphaVantageAssetService alphaVantageAssetService;
+    private final PriceResolutionService priceResolutionService;
     private final com.example.portfoliomanager.repository.TransactionRepository transactionRepository;
 
-    public HoldingService(HoldingRepository repository, PortfolioService portfolioService, FinnhubStockService finnhubStockService, AlphaVantageAssetService alphaVantageAssetService, com.example.portfoliomanager.repository.TransactionRepository transactionRepository) {
+    public HoldingService(
+            HoldingRepository repository,
+            PortfolioService portfolioService,
+            PriceResolutionService priceResolutionService,
+            com.example.portfoliomanager.repository.TransactionRepository transactionRepository) {
         this.repository = repository;
         this.portfolioService = portfolioService;
-        this.finnhubStockService = finnhubStockService;
-        this.alphaVantageAssetService = alphaVantageAssetService;
+        this.priceResolutionService = priceResolutionService;
         this.transactionRepository = transactionRepository;
     }
 
@@ -50,40 +55,39 @@ public class HoldingService {
             }
             holdings = repository.findByPortfolioIdIn(userPortfolioIds);
         }
-        return holdings.stream().map(this::toResponse).toList();
+        return holdings.stream().map(h -> toResponse(h, null, List.of())).toList();
     }
 
     @Transactional(readOnly = true)
     public HoldingResponse findById(Long id) {
-        return toResponse(getEntity(id));
+        return toResponse(getEntity(id), null, List.of());
     }
 
     public HoldingResponse create(HoldingRequest request) {
         String symbol = request.symbol().trim().toUpperCase(Locale.ROOT);
         Long portfolioId = request.portfolioId();
+        List<String> notes = new ArrayList<>();
+        String priceSource = null;
 
-        // Fetch historical purchase price for this batch based on purchaseDate
+        // Resolve the historical purchase-batch price once (Finnhub -> Alpha Vantage -> Yahoo),
+        // unless the user supplied one manually.
         BigDecimal newBatchPrice = request.averagePurchasePrice();
         if (newBatchPrice == null || newBatchPrice.compareTo(BigDecimal.ZERO) <= 0) {
-            try {
-                StockPriceResponse quote = finnhubStockService.getHistoricalQuote(symbol, request.purchaseDate());
-                if (quote != null && quote.price() != null) {
-                    newBatchPrice = quote.price();
-                }
-            } catch (Exception e) {
-                log.warn("Could not fetch historical quote for {} on {}: {}", symbol, request.purchaseDate(), e.getMessage());
+            PriceLookupResult histResult = priceResolutionService.resolveHistoricalPrice(symbol, request.purchaseDate());
+            notes.addAll(histResult.notes());
+            if (histResult.found()) {
+                newBatchPrice = histResult.quote().price();
+                priceSource = histResult.source();
             }
+        } else {
+            notes.add("Used manually entered purchase price for " + symbol + ".");
         }
+
         if (newBatchPrice == null || newBatchPrice.compareTo(BigDecimal.ZERO) <= 0) {
-            // Finnhub does not support most mutual fund tickers - fall back to Alpha Vantage's
-            // latest quote (best-effort approximation when a historical price isn't available).
-            StockPriceResponse fallback = alphaVantageAssetService.getQuote(symbol);
-            if (fallback != null && fallback.price() != null) {
-                newBatchPrice = fallback.price();
-            }
-        }
-        if (newBatchPrice == null || newBatchPrice.compareTo(BigDecimal.ZERO) <= 0) {
-            newBatchPrice = BigDecimal.ZERO;
+            throw new ExternalApiException(
+                    "Could not automatically fetch a historical price for " + symbol + " on " + request.purchaseDate()
+                            + " from Finnhub, Alpha Vantage, or Yahoo Finance. This can happen for mutual funds or "
+                            + "thinly-traded tickers. Please enter the Avg Purchase Price manually.", null);
         }
 
         Holding savedHolding;
@@ -111,28 +115,24 @@ public class HoldingService {
                 existing.setPurchaseDate(request.purchaseDate());
             }
 
-            // Update live price
-            try {
-                StockPriceResponse live = finnhubStockService.getQuote(symbol);
-                if (live != null && live.price() != null) {
-                    existing.setCurrentPrice(live.price());
-                    existing.setLastPriceUpdate(LocalDateTime.now());
-                } else {
-                    throw new IllegalStateException("no price from finnhub");
-                }
-            } catch (Exception e) {
-                StockPriceResponse fallback = alphaVantageAssetService.getQuote(symbol);
-                if (fallback != null && fallback.price() != null) {
-                    existing.setCurrentPrice(fallback.price());
-                    existing.setLastPriceUpdate(LocalDateTime.now());
-                }
+            // Update live/current price (Finnhub -> Alpha Vantage -> Yahoo)
+            PriceLookupResult liveResult = priceResolutionService.resolveLivePrice(symbol);
+            notes.addAll(liveResult.notes());
+            if (liveResult.found()) {
+                existing.setCurrentPrice(liveResult.quote().price());
+                existing.setLastPriceUpdate(LocalDateTime.now());
+                // Live price source takes priority in the response since it's the most recent lookup.
+                priceSource = liveResult.source();
             }
 
             savedHolding = repository.save(existing);
         } else {
             // Creating brand new holding
             Holding holding = new Holding();
-            apply(holding, request, newBatchPrice, null);
+            String livePriceSource = applyNewHolding(holding, request, newBatchPrice, notes);
+            if (livePriceSource != null) {
+                priceSource = livePriceSource;
+            }
             savedHolding = repository.save(holding);
         }
 
@@ -151,13 +151,14 @@ public class HoldingService {
             log.warn("Could not save automatic transaction for holding batch: {}", e.getMessage());
         }
 
-        return toResponse(savedHolding);
+        return toResponse(savedHolding, priceSource, notes);
     }
 
     public HoldingResponse update(Long id, HoldingRequest request) {
         Holding holding = getEntity(id);
-        apply(holding, request, request.averagePurchasePrice(), null);
-        return toResponse(repository.save(holding));
+        List<String> notes = new ArrayList<>();
+        String priceSource = applyExistingHolding(holding, request, notes);
+        return toResponse(repository.save(holding), priceSource, notes);
     }
 
     public void delete(Long id) {
@@ -168,7 +169,49 @@ public class HoldingService {
         return repository.findById(id).orElseThrow(() -> new ResourceNotFoundException("Holding", id));
     }
 
-    private void apply(Holding holding, HoldingRequest request, BigDecimal batchPrice, StockPriceResponse preFetchedQuote) {
+    /**
+     * Populates a brand-new Holding entity: the historical average purchase price is already
+     * resolved by the caller and passed in as {@code batchPrice}; this method resolves the
+     * current live price (Finnhub -> Alpha Vantage -> Yahoo) and fills in company name from
+     * whichever provider responded. Returns the source of the live price for notifications.
+     */
+    private String applyNewHolding(Holding holding, HoldingRequest request, BigDecimal batchPrice, List<String> notes) {
+        String symbol = request.symbol().trim().toUpperCase(Locale.ROOT);
+        holding.setSymbol(symbol);
+        holding.setQuantity(request.quantity());
+        holding.setPortfolio(portfolioService.getEntity(request.portfolioId()));
+        holding.setPurchaseDate(request.purchaseDate() != null ? request.purchaseDate() : java.time.LocalDate.now());
+        holding.setAveragePurchasePrice(batchPrice);
+
+        String companyName = request.companyName();
+
+        PriceLookupResult liveResult = priceResolutionService.resolveLivePrice(symbol);
+        notes.addAll(liveResult.notes());
+        String liveSource = null;
+        if (liveResult.found()) {
+            holding.setCurrentPrice(liveResult.quote().price());
+            holding.setLastPriceUpdate(LocalDateTime.now());
+            liveSource = liveResult.source();
+            if ((companyName == null || companyName.isBlank()) && liveResult.quote().companyName() != null) {
+                companyName = liveResult.quote().companyName();
+            }
+        } else if (holding.getCurrentPrice() == null) {
+            // As an absolute last resort (all 3 providers down for the live quote), fall back to
+            // the historical/purchase price rather than leaving currentPrice null.
+            holding.setCurrentPrice(batchPrice);
+            notes.add("Live price unavailable from all providers for " + symbol + " — using purchase price as a placeholder.");
+        }
+
+        holding.setCompanyName((companyName != null && !companyName.isBlank()) ? companyName.trim() : symbol);
+        return liveSource;
+    }
+
+    /**
+     * Applies an update to an existing Holding (edit form), re-resolving the historical price
+     * only if the user cleared/omitted it, and always refreshing the live price.
+     * Returns the source of whichever provider most recently supplied a price, for notifications.
+     */
+    private String applyExistingHolding(Holding holding, HoldingRequest request, List<String> notes) {
         String symbol = request.symbol().trim().toUpperCase(Locale.ROOT);
         holding.setSymbol(symbol);
         holding.setQuantity(request.quantity());
@@ -176,76 +219,50 @@ public class HoldingService {
         holding.setPurchaseDate(request.purchaseDate() != null ? request.purchaseDate() : java.time.LocalDate.now());
 
         String companyName = request.companyName();
+        String priceSource = null;
 
-        // 1. Set Average Purchase Price (Historical)
+        BigDecimal batchPrice = request.averagePurchasePrice();
         if (batchPrice != null && batchPrice.compareTo(BigDecimal.ZERO) > 0) {
             holding.setAveragePurchasePrice(batchPrice);
+            notes.add("Used manually entered purchase price for " + symbol + ".");
         } else {
-            BigDecimal resolvedPrice = null;
-            try {
-                StockPriceResponse histQuote = finnhubStockService.getHistoricalQuote(symbol, request.purchaseDate());
-                if (histQuote != null && histQuote.price() != null) {
-                    resolvedPrice = histQuote.price();
-                    if (companyName == null || companyName.isBlank()) {
-                        companyName = histQuote.companyName();
-                    }
-                }
-            } catch (Exception e) {
-                log.warn("Could not fetch historical quote for {} from Finnhub: {}", symbol, e.getMessage());
-            }
-
-            if (resolvedPrice == null) {
-                // Finnhub does not cover most mutual fund tickers (returns 403/no data).
-                // Fall back to Alpha Vantage's latest quote as a best-effort approximation.
-                StockPriceResponse fallback = alphaVantageAssetService.getQuote(symbol);
-                if (fallback != null && fallback.price() != null) {
-                    resolvedPrice = fallback.price();
-                }
-            }
-
-            if (resolvedPrice != null) {
-                holding.setAveragePurchasePrice(resolvedPrice);
-            } else {
-                throw new com.example.portfoliomanager.exception.ExternalApiException(
-                        "Could not automatically fetch a price for " + symbol + " from Finnhub or Alpha Vantage. "
-                                + "This is common for mutual funds. Please enter the Avg Purchase Price manually.", null);
-            }
-        }
-
-        // 2. Set Current Price (Live)
-        try {
-            StockPriceResponse liveQuote = preFetchedQuote != null ? preFetchedQuote : finnhubStockService.getQuote(symbol);
-            if (liveQuote != null && liveQuote.price() != null) {
-                holding.setCurrentPrice(liveQuote.price());
-                holding.setLastPriceUpdate(LocalDateTime.now());
-                if (companyName == null || companyName.isBlank()) {
-                    companyName = liveQuote.companyName();
+            PriceLookupResult histResult = priceResolutionService.resolveHistoricalPrice(symbol, request.purchaseDate());
+            notes.addAll(histResult.notes());
+            if (histResult.found()) {
+                holding.setAveragePurchasePrice(histResult.quote().price());
+                priceSource = histResult.source();
+                if ((companyName == null || companyName.isBlank()) && histResult.quote().companyName() != null) {
+                    companyName = histResult.quote().companyName();
                 }
             } else {
-                throw new IllegalStateException("no live quote from finnhub");
-            }
-        } catch (Exception e) {
-            log.warn("Could not fetch live quote for {} from Finnhub: {}", symbol, e.getMessage());
-            StockPriceResponse fallback = alphaVantageAssetService.getQuote(symbol);
-            if (fallback != null && fallback.price() != null) {
-                holding.setCurrentPrice(fallback.price());
-                holding.setLastPriceUpdate(LocalDateTime.now());
-            } else if (holding.getCurrentPrice() == null) {
-                holding.setCurrentPrice(holding.getAveragePurchasePrice());
+                throw new ExternalApiException(
+                        "Could not automatically fetch a historical price for " + symbol + " on " + request.purchaseDate()
+                                + " from Finnhub, Alpha Vantage, or Yahoo Finance. Please enter the Avg Purchase Price manually.", null);
             }
         }
 
-        // 3. Set Company Name
-        if (companyName != null && !companyName.isBlank()) {
-            holding.setCompanyName(companyName.trim());
-        } else {
-            holding.setCompanyName(symbol);
+        PriceLookupResult liveResult = priceResolutionService.resolveLivePrice(symbol);
+        notes.addAll(liveResult.notes());
+        if (liveResult.found()) {
+            holding.setCurrentPrice(liveResult.quote().price());
+            holding.setLastPriceUpdate(LocalDateTime.now());
+            priceSource = liveResult.source();
+            if ((companyName == null || companyName.isBlank()) && liveResult.quote().companyName() != null) {
+                companyName = liveResult.quote().companyName();
+            }
+        } else if (holding.getCurrentPrice() == null) {
+            holding.setCurrentPrice(holding.getAveragePurchasePrice());
+            notes.add("Live price unavailable from all providers for " + symbol + " — using purchase price as a placeholder.");
         }
+
+        holding.setCompanyName((companyName != null && !companyName.isBlank()) ? companyName.trim() : symbol);
+        return priceSource;
     }
 
-    private HoldingResponse toResponse(Holding holding) {
+    private HoldingResponse toResponse(Holding holding, String priceSource, List<String> notes) {
         return new HoldingResponse(holding.getId(), holding.getSymbol(), holding.getCompanyName(),
                 holding.getQuantity(), holding.getAveragePurchasePrice(), holding.getCurrentPrice(),
-                holding.getLastPriceUpdate(), holding.getPurchaseDate(), holding.getPortfolio().getId());
+                holding.getLastPriceUpdate(), holding.getPurchaseDate(), holding.getPortfolio().getId(),
+                priceSource, notes == null ? List.of() : notes);
     }
 }

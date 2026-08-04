@@ -49,6 +49,16 @@ public class YahooFinanceService {
             }
         }
 
+        return getQuoteYahooOnly(symbol);
+    }
+
+    /**
+     * Fetches the live quote directly from Yahoo Finance's public chart API, skipping the
+     * Finnhub pre-check. Used by {@link PriceResolutionService} which already attempted
+     * Finnhub as its own explicit step, to avoid a duplicate/wasted Finnhub call.
+     */
+    public StockPriceResponse getQuoteYahooOnly(String rawSymbol) {
+        String symbol = rawSymbol.trim().toUpperCase(Locale.ROOT);
         try {
             // Use URI template variable so special chars like ^ (%5E) are properly percent-encoded
             URI uri = UriComponentsBuilder

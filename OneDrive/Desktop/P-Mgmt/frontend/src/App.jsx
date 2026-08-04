@@ -85,6 +85,7 @@ export default function App() {
   const [username, setUsername] = useState(localStorage.getItem(USERNAME_KEY) || "");
 
   const [sidebarCollapsed, setSidebarCollapsed] = useState(() => window.innerWidth < 1024);
+  const [sidebarRail, setSidebarRail] = useState(() => localStorage.getItem("pm_sidebar_rail") === "true");
   const [assistantOpen, setAssistantOpen] = useState(false);
   const [searchQuery, setSearchQuery] = useState("");
 
@@ -355,13 +356,40 @@ export default function App() {
       purchaseDate: holdingForm.purchaseDate || null,
       portfolioId,
     };
-    await withMutation(
-      () =>
-        holdingForm.id
-          ? portfolioApi.updateHolding(holdingForm.id, payload)
-          : portfolioApi.createHolding(payload),
-      holdingForm.id ? "Holding updated." : "Holding created.",
-    );
+    try {
+      const saved = holdingForm.id
+        ? await portfolioApi.updateHolding(holdingForm.id, payload)
+        : await portfolioApi.createHolding(payload);
+      await fetchPortfolioData();
+
+      const baseMessage = holdingForm.id ? "Holding updated." : "Holding created.";
+      const sourceLabels = {
+        FINNHUB: "Finnhub",
+        ALPHA_VANTAGE: "Alpha Vantage",
+        YAHOO: "Yahoo Finance",
+        NONE: "no provider",
+      };
+      if (saved?.priceSource && saved.priceSource !== "NONE") {
+        const label = sourceLabels[saved.priceSource] || saved.priceSource;
+        const usedFallback = saved.priceSource !== "FINNHUB";
+        pushToast(`${baseMessage} Price sourced from ${label}.`, usedFallback ? "info" : "success");
+      } else {
+        pushToast(baseMessage, "success");
+      }
+
+      // Surface the underlying provider attempt notes (e.g. "Finnhub unavailable — Alpha Vantage
+      // provided the historical price...") so the user can see exactly what worked/failed.
+      if (Array.isArray(saved?.priceNotes)) {
+        saved.priceNotes
+          .filter((note) => /unavailable|failed|no usable price|manually entered|placeholder/i.test(note))
+          .slice(0, 3)
+          .forEach((note) => pushToast(note, "info"));
+      }
+    } catch (error) {
+      const message = error?.response?.data?.message || error?.message || "Request failed.";
+      pushToast(message, "error");
+      return;
+    }
     resetHoldingForm();
   };
 
@@ -446,12 +474,14 @@ export default function App() {
         setAssetSearchResults(results || []);
       } catch (error) {
         setAssetSearchResults([]);
+        const message = error?.response?.data?.message || "Asset search failed.";
+        pushToast(message, "error");
       } finally {
         setAssetSearchLoading(false);
       }
     }, 400);
     return () => clearTimeout(timer);
-  }, [assetSearchQuery]);
+  }, [assetSearchQuery, pushToast]);
 
   const selectAssetSearchResult = (result) => {
     setHoldingForm((h) => ({
@@ -496,6 +526,14 @@ export default function App() {
         sessions={sessions}
         collapsed={sidebarCollapsed}
         onToggle={() => setSidebarCollapsed((prev) => !prev)}
+        rail={sidebarRail}
+        onToggleRail={() =>
+          setSidebarRail((prev) => {
+            const next = !prev;
+            localStorage.setItem("pm_sidebar_rail", String(next));
+            return next;
+          })
+        }
         onOpenAssistant={() => setAssistantOpen(true)}
         onOpenChatSession={(id) => {
           setActiveId(id);
@@ -518,7 +556,7 @@ export default function App() {
         {/* MAIN SCROLLABLE CONTENT AREA */}
         <main className="flex-1 p-lg overflow-y-auto custom-scrollbar">
           {/* TICKER TAPE BAR WITH LIVE FINNHUB DATA */}
-          <div className="mb-lg overflow-hidden whitespace-nowrap bg-surface-container-high py-xs px-sm rounded-lg border border-outline-variant/30">
+          <div className="mb-lg overflow-hidden whitespace-nowrap glass-surface py-xs px-sm rounded-lg">
             <div className="ticker-tape flex gap-xl text-body-sm font-label-caps">
               {/* Render items TWICE for seamless infinite scroll (translateX -50% loops) */}
               {[0, 1].map((pass) => (
@@ -822,13 +860,53 @@ const SYMBOL_SECTOR_MAP = {
   PFE: "Healthcare",
   UNH: "Healthcare",
   SUNPHARMA: "Healthcare",
+  // Popular ETFs / index funds
+  VOO: "ETFs & Funds",
+  SPY: "ETFs & Funds",
+  IVV: "ETFs & Funds",
+  VTI: "ETFs & Funds",
+  QQQ: "ETFs & Funds",
+  VUG: "ETFs & Funds",
+  VTV: "ETFs & Funds",
+  VXUS: "ETFs & Funds",
+  VEA: "ETFs & Funds",
+  VWO: "ETFs & Funds",
+  BND: "ETFs & Funds",
+  AGG: "ETFs & Funds",
+  GLD: "ETFs & Funds",
+  ARKK: "ETFs & Funds",
+  DIA: "ETFs & Funds",
+  IWM: "ETFs & Funds",
+  SCHD: "ETFs & Funds",
+  // Popular mutual funds
+  AGTHX: "ETFs & Funds",
+  VFIAX: "ETFs & Funds",
+  FXAIX: "ETFs & Funds",
+  SWPPX: "ETFs & Funds",
+  VTSAX: "ETFs & Funds",
+  VTIAX: "ETFs & Funds",
+  FCNTX: "ETFs & Funds",
+  RGAGX: "ETFs & Funds",
+  ANWPX: "ETFs & Funds",
+};
+
+// Keywords in a company/fund name that indicate it's an ETF or mutual fund rather than a single equity.
+const FUND_NAME_HINTS = ["etf", "fund", "index", "trust", "portfolio shares", " shares", "growth fund", "income fund"];
+
+const isLikelyFund = (h) => {
+  const name = (h.companyName || "").toLowerCase();
+  const sym = (h.symbol || "").toUpperCase();
+  // Mutual fund tickers conventionally end in X and are 5 letters (e.g. AGTHX, VFIAX, FXAIX).
+  if (/^[A-Z]{5}X$/.test(sym)) return true;
+  return FUND_NAME_HINTS.some((hint) => name.includes(hint));
 };
 
 const getSectorForHolding = (h) => {
   if (h.sector && h.sector !== "Unknown") return h.sector;
   const sym = (h.symbol || "").toUpperCase();
   if (SYMBOL_SECTOR_MAP[sym]) return SYMBOL_SECTOR_MAP[sym];
-  return "Technology";
+  if (isLikelyFund(h)) return "ETFs & Funds";
+  return "Other";
 };
 
 const CHART_PALETTE = ["#4be277", "#38bdf8", "#818cf8", "#fbbf24", "#f43f5e", "#a78bfa", "#34d399"];
