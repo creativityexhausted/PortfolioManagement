@@ -1079,12 +1079,20 @@ function DashboardView({ insights, holdings, watchlist, transactions, onOpenAssi
   }, [chartPeriod, holdings]);
 
   return (
-    <div className="space-y-lg">
+    <div className="relative space-y-lg">
+      {/* AMBIENT GLOW BACKDROP — gives the glass panels below something colorful to refract/blur,
+          consistent with Apple-style "liquid glass" material (subtle, fixed, non-interactive). */}
+      <div className="pointer-events-none fixed inset-0 -z-10 overflow-hidden">
+        <div className="absolute -top-32 -left-24 h-[420px] w-[420px] rounded-full bg-primary/25 blur-[120px]" />
+        <div className="absolute top-1/3 -right-24 h-[380px] w-[380px] rounded-full bg-sky-500/20 blur-[130px]" />
+        <div className="absolute bottom-0 left-1/3 h-[360px] w-[360px] rounded-full bg-fuchsia-500/10 blur-[140px]" />
+      </div>
+
       {chartSymbol && <StockChartModal symbol={chartSymbol} onClose={() => setChartSymbol(null)} />}
       {/* HERO KPI CARDS */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-gutter">
         {/* Card 1 */}
-        <div className="glass-panel p-md rounded-xl group hover:border-primary/50 transition-all duration-300">
+        <div className="glass-surface p-md rounded-xl group hover:border-primary/50 transition-all duration-300">
           <div className="flex justify-between items-center mb-xs">
             <p className="font-label-caps text-label-caps text-on-surface-variant">Portfolio Value</p>
             <button onClick={onRefreshData} title="Refresh Live Quotes" className="text-on-surface-variant hover:text-primary">
@@ -1101,7 +1109,7 @@ function DashboardView({ insights, holdings, watchlist, transactions, onOpenAssi
         </div>
 
         {/* Card 2 */}
-        <div className="glass-panel p-md rounded-xl group hover:border-primary/50 transition-all duration-300">
+        <div className="glass-surface p-md rounded-xl group hover:border-primary/50 transition-all duration-300">
           <p className="font-label-caps text-label-caps text-on-surface-variant mb-xs">Today's Change</p>
           <h2
             className={`font-display-lg text-[32px] font-bold leading-none mb-xs ${
@@ -1120,7 +1128,7 @@ function DashboardView({ insights, holdings, watchlist, transactions, onOpenAssi
         </div>
 
         {/* Card 3 */}
-        <div className="glass-panel p-md rounded-xl group hover:border-primary/50 transition-all duration-300">
+        <div className="glass-surface p-md rounded-xl group hover:border-primary/50 transition-all duration-300">
           <p className="font-label-caps text-label-caps text-on-surface-variant mb-xs">Total Gain</p>
           <h2
             className={`font-display-lg text-[32px] font-bold leading-none mb-xs ${
@@ -1137,7 +1145,7 @@ function DashboardView({ insights, holdings, watchlist, transactions, onOpenAssi
         </div>
 
         {/* Card 4 */}
-        <div className="glass-panel p-md rounded-xl group hover:border-primary/50 transition-all duration-300">
+        <div className="glass-surface p-md rounded-xl group hover:border-primary/50 transition-all duration-300">
           <p className="font-label-caps text-label-caps text-on-surface-variant mb-xs">Annual Return</p>
           <h2 className={`font-display-lg text-[32px] font-bold leading-none mb-xs ${annualReturnVal >= 0 ? "text-on-surface" : "text-error"}`}>
             {annualReturnVal >= 0 ? "+" : ""}{annualReturnVal.toFixed(1)}%
@@ -1152,7 +1160,7 @@ function DashboardView({ insights, holdings, watchlist, transactions, onOpenAssi
       {/* BENTO GRID SECTION */}
       <div className="grid grid-cols-12 gap-gutter">
         {/* MAIN GROWTH CHART */}
-        <div className="col-span-12 lg:col-span-8 glass-panel rounded-xl p-md flex flex-col">
+        <div className="col-span-12 lg:col-span-8 glass-surface rounded-xl p-md flex flex-col">
           <div className="flex flex-wrap justify-between items-center mb-md gap-sm">
             <div>
               <h3 className="font-headline-md text-headline-md font-bold">Growth Performance</h3>
@@ -1208,7 +1216,7 @@ function DashboardView({ insights, holdings, watchlist, transactions, onOpenAssi
         </div>
 
         {/* ASSET ALLOCATION */}
-        <div className="col-span-12 lg:col-span-4 glass-panel rounded-xl p-md flex flex-col">
+        <div className="col-span-12 lg:col-span-4 glass-surface rounded-xl p-md flex flex-col">
           <h3 className="font-headline-md text-headline-md font-bold mb-xs">Asset Allocation</h3>
           <div className="flex-1 flex flex-col items-center justify-between relative min-h-[220px]">
             <div className="w-full h-44 relative flex items-center justify-center">
@@ -1271,7 +1279,7 @@ function DashboardView({ insights, holdings, watchlist, transactions, onOpenAssi
         </div>
 
         {/* TOP HOLDINGS TABLE (LIVE YAHOO QUOTES) */}
-        <div className="col-span-12 lg:col-span-8 glass-panel rounded-xl p-md">
+        <div className="col-span-12 lg:col-span-8 glass-surface rounded-xl p-md">
           <div className="flex justify-between items-center mb-md">
             <h3 className="font-headline-md text-headline-md font-bold">Top Holdings (Finnhub Quotes)</h3>
             <button onClick={onRefreshData} className="text-primary font-label-caps text-xs font-semibold hover:underline">
@@ -1337,7 +1345,7 @@ function DashboardView({ insights, holdings, watchlist, transactions, onOpenAssi
         </div>
 
         {/* WATCHLIST & SPARKLINES */}
-        <div className="col-span-12 lg:col-span-4 glass-panel rounded-xl p-md">
+        <div className="col-span-12 lg:col-span-4 glass-surface rounded-xl p-md">
           <div className="flex justify-between items-center mb-md">
             <h3 className="font-headline-md text-headline-md font-bold">Watchlist</h3>
             <Star className="h-4 w-4 text-on-surface-variant hover:text-primary cursor-pointer" />
@@ -1407,7 +1415,7 @@ function DashboardView({ insights, holdings, watchlist, transactions, onOpenAssi
         </div>
 
         {/* RECENT TRANSACTIONS */}
-        <div className="col-span-12 glass-panel rounded-xl p-md">
+        <div className="col-span-12 glass-surface rounded-xl p-md">
           <div className="flex justify-between items-center mb-md">
             <h3 className="font-headline-md text-headline-md font-bold">Recent Executions</h3>
             <span className="px-md py-xs bg-surface-variant text-body-sm rounded-lg text-xs font-semibold">
@@ -1480,7 +1488,13 @@ function HoldingsView({
   onSelectAssetSearchResult,
 }) {
   return (
-    <div className="space-y-lg">
+    <div className="relative space-y-lg">
+      <div className="pointer-events-none fixed inset-0 -z-10 overflow-hidden">
+        <div className="absolute -top-32 -left-24 h-[420px] w-[420px] rounded-full bg-primary/25 blur-[120px]" />
+        <div className="absolute top-1/3 -right-24 h-[380px] w-[380px] rounded-full bg-sky-500/20 blur-[130px]" />
+        <div className="absolute bottom-0 left-1/3 h-[360px] w-[360px] rounded-full bg-fuchsia-500/10 blur-[140px]" />
+      </div>
+
       <div className="flex justify-between items-center">
         <div>
           <h2 className="font-headline-md text-headline-md font-bold">Holdings Manager</h2>
@@ -1491,7 +1505,7 @@ function HoldingsView({
       <div className="grid grid-cols-1 md:grid-cols-3 gap-gutter">
         {/* Form + Quote Lookup */}
         <div className="space-y-md">
-          <form onSubmit={onSaveHolding} className="glass-panel p-md rounded-xl space-y-sm">
+          <form onSubmit={onSaveHolding} className="glass-surface p-md rounded-xl space-y-sm">
             <h3 className="font-bold text-on-surface text-base">
               {holdingForm.id ? "Edit Holding" : "Add New Holding"}
             </h3>
@@ -1536,7 +1550,7 @@ function HoldingsView({
                 type="text"
                 value={holdingForm.symbol}
                 onChange={(e) => setHoldingForm((h) => ({ ...h, symbol: e.target.value }))}
-                placeholder="e.g. RELIANCE.NS, HDFCBANK.NS, AAPL"
+                placeholder="e.g. AAPL"
                 className="w-full bg-surface-dim border border-outline-variant/60 rounded-lg p-sm text-body-sm text-on-surface focus:ring-1 focus:ring-primary uppercase"
                 required
               />
@@ -1608,14 +1622,14 @@ function HoldingsView({
           </form>
 
           {/* Quick Quote Lookup */}
-          <div className="glass-panel p-md rounded-xl space-y-sm">
+          <div className="glass-surface p-md rounded-xl space-y-sm">
             <h4 className="font-bold text-xs text-on-surface uppercase tracking-wider">Live Yahoo Quote Lookup</h4>
             <form onSubmit={onLookupQuote} className="flex gap-xs">
               <input
                 type="text"
                 value={quoteSymbol}
                 onChange={(e) => setQuoteSymbol(e.target.value)}
-                placeholder="RELIANCE.NS, AAPL"
+                placeholder="AAPL"
                 className="flex-1 bg-surface-dim border border-outline-variant/60 rounded-lg p-xs text-xs uppercase"
               />
               <button
@@ -1639,7 +1653,7 @@ function HoldingsView({
         </div>
 
         {/* Holdings Table */}
-        <div className="col-span-2 glass-panel p-md rounded-xl">
+        <div className="col-span-2 glass-surface p-md rounded-xl">
           <div className="overflow-x-auto">
             <table className="w-full text-left">
               <thead>
@@ -1733,14 +1747,20 @@ function TransactionsView({
   onDeleteTransaction,
 }) {
   return (
-    <div className="space-y-lg">
+    <div className="relative space-y-lg">
+      <div className="pointer-events-none fixed inset-0 -z-10 overflow-hidden">
+        <div className="absolute -top-32 -left-24 h-[420px] w-[420px] rounded-full bg-primary/25 blur-[120px]" />
+        <div className="absolute top-1/3 -right-24 h-[380px] w-[380px] rounded-full bg-sky-500/20 blur-[130px]" />
+        <div className="absolute bottom-0 left-1/3 h-[360px] w-[360px] rounded-full bg-fuchsia-500/10 blur-[140px]" />
+      </div>
+
       <div>
         <h2 className="font-headline-md text-headline-md font-bold">Transaction Executions</h2>
         <p className="text-body-sm text-on-surface-variant">Log buy and sell orders</p>
       </div>
 
       <div className="grid grid-cols-1 md:grid-cols-3 gap-gutter">
-        <form onSubmit={onSaveTransaction} className="glass-panel p-md rounded-xl space-y-sm">
+        <form onSubmit={onSaveTransaction} className="glass-surface p-md rounded-xl space-y-sm">
           <h3 className="font-bold text-on-surface text-base">Record Execution</h3>
           <div className="grid grid-cols-2 gap-xs">
             <div>
@@ -1760,7 +1780,7 @@ function TransactionsView({
                 type="text"
                 value={transactionForm.symbol}
                 onChange={(e) => setTransactionForm((t) => ({ ...t, symbol: e.target.value }))}
-                placeholder="RELIANCE.NS"
+                placeholder="aapl"
                 className="w-full bg-surface-dim border border-outline-variant/60 rounded-lg p-sm text-body-sm text-on-surface uppercase"
                 required
               />
@@ -1810,7 +1830,7 @@ function TransactionsView({
           </button>
         </form>
 
-        <div className="col-span-2 glass-panel p-md rounded-xl">
+        <div className="col-span-2 glass-surface p-md rounded-xl">
           <div className="overflow-x-auto">
             <table className="w-full text-left">
               <thead>
@@ -2012,7 +2032,13 @@ function WatchlistView({ watchlist, watchlistForm, setWatchlistForm, onSaveWatch
   const [chartSymbol, setChartSymbol] = useState(null);
 
   return (
-    <div className="space-y-lg">
+    <div className="relative space-y-lg">
+      <div className="pointer-events-none fixed inset-0 -z-10 overflow-hidden">
+        <div className="absolute -top-32 -left-24 h-[420px] w-[420px] rounded-full bg-primary/25 blur-[120px]" />
+        <div className="absolute top-1/3 -right-24 h-[380px] w-[380px] rounded-full bg-sky-500/20 blur-[130px]" />
+        <div className="absolute bottom-0 left-1/3 h-[360px] w-[360px] rounded-full bg-fuchsia-500/10 blur-[140px]" />
+      </div>
+
       <div>
         <h2 className="font-headline-md text-headline-md font-bold">Watchlist</h2>
         <p className="text-body-sm text-on-surface-variant">Track target prices for stocks</p>
@@ -2021,7 +2047,7 @@ function WatchlistView({ watchlist, watchlistForm, setWatchlistForm, onSaveWatch
       {chartSymbol && <StockChartModal symbol={chartSymbol} onClose={() => setChartSymbol(null)} />}
 
       <div className="grid grid-cols-1 md:grid-cols-3 gap-gutter">
-        <form onSubmit={onSaveWatchlist} className="glass-panel p-md rounded-xl space-y-sm">
+        <form onSubmit={onSaveWatchlist} className="glass-surface p-md rounded-xl space-y-sm">
           <h3 className="font-bold text-on-surface text-base">Add Ticker</h3>
           <div>
             <label className="text-xs font-label-caps text-on-surface-variant">Symbol</label>
@@ -2029,7 +2055,7 @@ function WatchlistView({ watchlist, watchlistForm, setWatchlistForm, onSaveWatch
               type="text"
               value={watchlistForm.symbol}
               onChange={(e) => setWatchlistForm((w) => ({ ...w, symbol: e.target.value }))}
-              placeholder="e.g. RELIANCE.NS, AAPL"
+              placeholder="e.g. AAPL"
               className="w-full bg-surface-dim border border-outline-variant/60 rounded-lg p-sm text-body-sm uppercase"
               required
             />
@@ -2053,7 +2079,7 @@ function WatchlistView({ watchlist, watchlistForm, setWatchlistForm, onSaveWatch
           </button>
         </form>
 
-        <div className="col-span-2 glass-panel p-md rounded-xl">
+        <div className="col-span-2 glass-surface p-md rounded-xl">
           <div className="grid grid-cols-1 md:grid-cols-2 gap-md">
             {watchlist.length === 0 ? (
               <p className="col-span-full py-xl text-center text-xs text-on-surface-variant italic">
@@ -2152,7 +2178,13 @@ function MarketView({ news, onRefreshNews, quote, quoteLoading, quoteSymbol, set
   }, [news, activeFilter]);
 
   return (
-    <div className="space-y-lg">
+    <div className="relative space-y-lg">
+      <div className="pointer-events-none fixed inset-0 -z-10 overflow-hidden">
+        <div className="absolute -top-32 -left-24 h-[420px] w-[420px] rounded-full bg-primary/25 blur-[120px]" />
+        <div className="absolute top-1/3 -right-24 h-[380px] w-[380px] rounded-full bg-sky-500/20 blur-[130px]" />
+        <div className="absolute bottom-0 left-1/3 h-[360px] w-[360px] rounded-full bg-fuchsia-500/10 blur-[140px]" />
+      </div>
+
       <div className="flex flex-col md:flex-row md:items-end justify-between gap-md">
         <div>
           <h2 className="font-headline-md text-headline-md font-bold">Market News</h2>
@@ -2170,7 +2202,7 @@ function MarketView({ news, onRefreshNews, quote, quoteLoading, quoteSymbol, set
       </div>
 
       {/* AI Portfolio Brief */}
-      <div className="glass-panel rounded-xl p-md border-l-4 border-primary">
+      <div className="glass-surface rounded-xl p-md border-l-4 border-primary">
         <div className="flex items-center gap-2 mb-sm">
           <Sparkles className="h-4 w-4 text-primary" />
           <h3 className="text-[11px] font-label-caps text-primary tracking-wide">AI PORTFOLIO BRIEF</h3>
@@ -2194,7 +2226,7 @@ function MarketView({ news, onRefreshNews, quote, quoteLoading, quoteSymbol, set
       </div>
 
       {/* Quote Lookup Bar */}
-      <form onSubmit={onLookupQuote} className="glass-panel p-md rounded-xl flex gap-md items-center">
+      <form onSubmit={onLookupQuote} className="glass-surface p-md rounded-xl flex gap-md items-center">
         <input
           type="text"
           value={quoteSymbol}
@@ -2212,7 +2244,7 @@ function MarketView({ news, onRefreshNews, quote, quoteLoading, quoteSymbol, set
       </form>
 
       {quote && (
-        <div className="glass-panel p-md rounded-xl border-primary/50 flex items-center justify-between">
+        <div className="glass-surface p-md rounded-xl border-primary/50 flex items-center justify-between">
           <div>
             <h3 className="text-xl font-bold text-primary">{quote.symbol}</h3>
             <p className="text-body-sm text-on-surface">{quote.companyName}</p>
@@ -2259,7 +2291,7 @@ function MarketView({ news, onRefreshNews, quote, quoteLoading, quoteSymbol, set
             return (
               <article
                 key={idx}
-                className="glass-panel rounded-xl overflow-hidden group hover:border-primary/50 transition-all flex flex-col"
+                className="glass-surface rounded-xl overflow-hidden group hover:border-primary/50 transition-all flex flex-col"
               >
                 <div className="flex flex-col md:flex-row">
                   {item.urlToImage && (
@@ -2362,13 +2394,19 @@ function MarketView({ news, onRefreshNews, quote, quoteLoading, quoteSymbol, set
 
 function SettingsView({ username, onLogout }) {
   return (
-    <div className="space-y-lg max-w-2xl">
+    <div className="relative space-y-lg max-w-2xl">
+      <div className="pointer-events-none fixed inset-0 -z-10 overflow-hidden">
+        <div className="absolute -top-32 -left-24 h-[420px] w-[420px] rounded-full bg-primary/25 blur-[120px]" />
+        <div className="absolute top-1/3 -right-24 h-[380px] w-[380px] rounded-full bg-sky-500/20 blur-[130px]" />
+        <div className="absolute bottom-0 left-1/3 h-[360px] w-[360px] rounded-full bg-fuchsia-500/10 blur-[140px]" />
+      </div>
+
       <div>
         <h2 className="font-headline-md text-headline-md font-bold">Account & System Settings</h2>
         <p className="text-body-sm text-on-surface-variant">Manage credentials and data services</p>
       </div>
 
-      <div className="glass-panel p-md rounded-xl space-y-md">
+      <div className="glass-surface p-md rounded-xl space-y-md">
         <div className="flex items-center gap-md pb-md border-b border-outline-variant/40">
           <div className="w-12 h-12 rounded-full bg-primary/20 text-primary flex items-center justify-center font-bold text-lg">
             {username ? username.charAt(0).toUpperCase() : <User />}
