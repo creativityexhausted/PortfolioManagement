@@ -28,7 +28,7 @@ import {
   Wallet,
   X,
 } from "lucide-react";
-import { Navigate, Route, Routes, useLocation, useNavigate } from "react-router-dom";
+import { Navigate, Route, Routes, useLocation, useNavigate, useParams } from "react-router-dom";
 import {
   ResponsiveContainer,
   AreaChart,
@@ -44,6 +44,7 @@ import { chatApi } from "./services/chatApi";
 import { authApi } from "./services/authApi";
 import { tokenStore } from "./services/apiClient";
 import { portfolioApi } from "./services/portfolioApi";
+import { snowflakeApi } from "./services/snowflakeApi";
 import { useChatSessions } from "./hooks/useChatSessions";
 import { formatCurrency, formatDateTime, safeId } from "./utils/formatters";
 import { computePortfolioInsights } from "./utils/insights";
@@ -51,6 +52,7 @@ import { Sidebar } from "./components/layout/Sidebar";
 import { TopBar } from "./components/layout/TopBar";
 import { AuthPanel } from "./components/common/AuthPanel";
 import { useToast } from "./components/common/ToastProvider";
+import { SnowflakeChart } from "./components/portfolio/SnowflakeChart";
 
 const USERNAME_KEY = "pm_username";
 
@@ -88,6 +90,7 @@ export default function App() {
   const [sidebarRail, setSidebarRail] = useState(() => localStorage.getItem("pm_sidebar_rail") === "true");
   const [assistantOpen, setAssistantOpen] = useState(false);
   const [searchQuery, setSearchQuery] = useState("");
+  const [snowflakeSymbol, setSnowflakeSymbol] = useState(null);
 
   const [loadingChat, setLoadingChat] = useState(false);
   const [chatInput, setChatInput] = useState("");
@@ -520,6 +523,10 @@ export default function App() {
   }
 
   return (
+    <>
+    {snowflakeSymbol && (
+      <SnowflakeDetailPage symbol={snowflakeSymbol} onClose={() => setSnowflakeSymbol(null)} />
+    )}
     <div className="flex h-screen bg-background text-on-surface font-body-base overflow-hidden">
       {/* SIDE NAV BAR */}
       <Sidebar
@@ -661,6 +668,7 @@ export default function App() {
                   onDeleteWatchlist={(id) =>
                     withMutation(() => portfolioApi.deleteWatchlistEntry(id), "Watchlist item removed.")
                   }
+                  onOpenSnowflake={setSnowflakeSymbol}
                 />
               }
             />
@@ -817,6 +825,7 @@ export default function App() {
         )}
       </AnimatePresence>
     </div>
+    </>
   );
 }
 
@@ -2025,12 +2034,227 @@ function StockChartModal({ symbol, onClose }) {
 }
 
 /* ==========================================================================
+   SNOWFLAKE FULL-PAGE DETAIL (chart + fundamentals score, standalone microservice)
+   ========================================================================== */
+
+function SnowflakeDetailPage({ symbol, onClose }) {
+  const [range, setRange] = useState(CANDLE_RANGES[2]);
+  const [candles, setCandles] = useState([]);
+  const [chartLoading, setChartLoading] = useState(true);
+  const [chartError, setChartError] = useState("");
+
+  const [snowflake, setSnowflake] = useState(null);
+  const [snowflakeLoading, setSnowflakeLoading] = useState(true);
+  const [snowflakeError, setSnowflakeError] = useState("");
+
+  // Close on Escape key, a standard full-page-overlay UX convention.
+  useEffect(() => {
+    const handler = (e) => {
+      if (e.key === "Escape") onClose();
+    };
+    window.addEventListener("keydown", handler);
+    return () => window.removeEventListener("keydown", handler);
+  }, [onClose]);
+
+  useEffect(() => {
+    let cancelled = false;
+    setChartLoading(true);
+    setChartError("");
+    portfolioApi
+      .getStockCandles(symbol, { resolution: range.resolution, days: range.days })
+      .then((data) => {
+        if (cancelled) return;
+        const points = (data?.candles || []).map((c) => ({
+          time: new Date(c.time * 1000).toLocaleDateString(undefined, { month: "short", day: "numeric" }),
+          close: Number(c.close),
+        }));
+        setCandles(points);
+        if (points.length === 0) setChartError("No chart data available for this symbol / range.");
+      })
+      .catch((err) => {
+        if (cancelled) return;
+        setChartError(err?.response?.data?.message || "Failed to load chart data.");
+        setCandles([]);
+      })
+      .finally(() => {
+        if (!cancelled) setChartLoading(false);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [symbol, range]);
+
+  useEffect(() => {
+    let cancelled = false;
+    setSnowflakeLoading(true);
+    setSnowflakeError("");
+    snowflakeApi
+      .getSnowflake(symbol)
+      .then((data) => {
+        if (!cancelled) setSnowflake(data);
+      })
+      .catch((err) => {
+        if (cancelled) return;
+        setSnowflakeError(
+          err?.response?.data?.message ||
+            "Fundamentals microservice unavailable. Make sure fundamentals-service is running on port 8081.",
+        );
+      })
+      .finally(() => {
+        if (!cancelled) setSnowflakeLoading(false);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [symbol]);
+
+  const first = candles[0]?.close;
+  const last = candles[candles.length - 1]?.close;
+  const changePct = first ? (((last - first) / first) * 100).toFixed(2) : null;
+  const isUp = changePct !== null && Number(changePct) >= 0;
+
+  return (
+    <div className="fixed inset-0 z-[100] flex flex-col bg-background text-on-surface overflow-y-auto custom-scrollbar">
+      {/* HEADER */}
+      <div className="sticky top-0 z-10 flex items-center justify-between px-lg py-md border-b border-outline-variant/40 bg-background/95 backdrop-blur-md">
+        <div>
+          <h2 className="text-2xl font-bold text-primary">{symbol}</h2>
+          {changePct !== null && (
+            <p className={`text-sm font-semibold ${isUp ? "text-primary" : "text-error"}`}>
+              {isUp ? "+" : ""}
+              {changePct}% ({range.label})
+            </p>
+          )}
+        </div>
+        <button
+          type="button"
+          onClick={onClose}
+          className="flex items-center gap-2 rounded-lg bg-surface-dim px-md py-sm text-sm font-bold text-on-surface hover:bg-error/10 hover:text-error transition-colors"
+        >
+          <X className="h-4 w-4" /> Close
+        </button>
+      </div>
+
+      {/* BODY: chart + snowflake side-by-side */}
+      <div className="flex-1 p-lg grid grid-cols-1 lg:grid-cols-2 gap-gutter items-start">
+        {/* PRICE CHART */}
+        <div className="glass-surface p-lg rounded-xl space-y-md">
+          <div className="flex items-center justify-between">
+            <h3 className="font-bold text-on-surface">Price Chart</h3>
+            <div className="flex gap-2">
+              {CANDLE_RANGES.map((r) => (
+                <button
+                  key={r.label}
+                  type="button"
+                  onClick={() => setRange(r)}
+                  className={`px-sm py-1 rounded-lg text-xs font-bold transition-colors ${
+                    r.label === range.label
+                      ? "bg-primary text-on-primary"
+                      : "bg-surface-dim text-on-surface-variant hover:text-on-surface"
+                  }`}
+                >
+                  {r.label}
+                </button>
+              ))}
+            </div>
+          </div>
+          <div className="h-80 w-full">
+            {chartLoading ? (
+              <div className="h-full flex items-center justify-center text-on-surface-variant text-sm">
+                Loading chart...
+              </div>
+            ) : chartError ? (
+              <div className="h-full flex items-center justify-center text-on-surface-variant text-sm text-center px-md">
+                {chartError}
+              </div>
+            ) : (
+              <ResponsiveContainer width="100%" height="100%">
+                <AreaChart data={candles} margin={{ top: 8, right: 8, left: 0, bottom: 0 }}>
+                  <defs>
+                    <linearGradient id="snowflakeChartFill" x1="0" y1="0" x2="0" y2="1">
+                      <stop offset="5%" stopColor={isUp ? "#4be277" : "#f87171"} stopOpacity={0.4} />
+                      <stop offset="95%" stopColor={isUp ? "#4be277" : "#f87171"} stopOpacity={0} />
+                    </linearGradient>
+                  </defs>
+                  <XAxis dataKey="time" tick={{ fontSize: 10 }} minTickGap={30} />
+                  <YAxis domain={["auto", "auto"]} tick={{ fontSize: 10 }} width={50} />
+                  <RechartsTooltip />
+                  <Area
+                    type="monotone"
+                    dataKey="close"
+                    stroke={isUp ? "#4be277" : "#f87171"}
+                    fill="url(#snowflakeChartFill)"
+                    strokeWidth={2}
+                  />
+                </AreaChart>
+              </ResponsiveContainer>
+            )}
+          </div>
+        </div>
+
+        {/* SNOWFLAKE FUNDAMENTALS SCORE */}
+        <div className="glass-surface p-lg rounded-xl space-y-md">
+          <div className="flex items-center justify-between">
+            <h3 className="font-bold text-on-surface">Fundamentals Snowflake</h3>
+            {snowflake && (
+              <span className="text-xs font-bold px-sm py-1 rounded-lg bg-primary/10 text-primary border border-primary/20">
+                {snowflake.overallLabel} &middot; {snowflake.overallScore.toFixed(1)}/6
+              </span>
+            )}
+          </div>
+
+          {snowflakeLoading ? (
+            <div className="h-80 flex items-center justify-center text-on-surface-variant text-sm">
+              Computing fundamentals score...
+            </div>
+          ) : snowflakeError ? (
+            <div className="h-80 flex items-center justify-center text-on-surface-variant text-sm text-center px-md">
+              {snowflakeError}
+            </div>
+          ) : (
+            <>
+              <SnowflakeChart snowflake={snowflake} />
+
+              <div className="space-y-2 pt-sm border-t border-outline-variant/30">
+                {[snowflake.value, snowflake.future, snowflake.past, snowflake.health, snowflake.dividend].map(
+                  (axis) => (
+                    <div key={axis.axis} className="text-xs">
+                      <div className="flex items-center justify-between">
+                        <span className="font-bold text-on-surface">
+                          {axis.axis} {axis.estimated && <span className="text-on-surface-variant font-normal">(estimated)</span>}
+                        </span>
+                        <span className="font-bold text-primary">{axis.score}/6</span>
+                      </div>
+                      {axis.explanation && (
+                        <p className="text-on-surface-variant mt-0.5">{axis.explanation}</p>
+                      )}
+                    </div>
+                  ),
+                )}
+              </div>
+
+              {snowflake.notes?.length > 0 && (
+                <div className="pt-sm border-t border-outline-variant/30 space-y-1">
+                  {snowflake.notes.map((note, i) => (
+                    <p key={i} className="text-[11px] text-on-surface-variant italic">
+                      {note}
+                    </p>
+                  ))}
+                </div>
+              )}
+            </>
+          )}
+        </div>
+      </div>
+    </div>
+  );
+}
+
+/* ==========================================================================
    WATCHLIST VIEW
    ========================================================================== */
 
-function WatchlistView({ watchlist, watchlistForm, setWatchlistForm, onSaveWatchlist, onDeleteWatchlist }) {
-  const [chartSymbol, setChartSymbol] = useState(null);
-
+function WatchlistView({ watchlist, watchlistForm, setWatchlistForm, onSaveWatchlist, onDeleteWatchlist, onOpenSnowflake }) {
   return (
     <div className="relative space-y-lg">
       <div className="pointer-events-none fixed inset-0 -z-10 overflow-hidden">
@@ -2041,10 +2265,11 @@ function WatchlistView({ watchlist, watchlistForm, setWatchlistForm, onSaveWatch
 
       <div>
         <h2 className="font-headline-md text-headline-md font-bold">Watchlist</h2>
-        <p className="text-body-sm text-on-surface-variant">Track target prices for stocks</p>
+        <p className="text-body-sm text-on-surface-variant">
+          Track target prices for stocks &middot; click a card to open its full chart + fundamentals score
+        </p>
       </div>
 
-      {chartSymbol && <StockChartModal symbol={chartSymbol} onClose={() => setChartSymbol(null)} />}
 
       <div className="grid grid-cols-1 md:grid-cols-3 gap-gutter">
         <form onSubmit={onSaveWatchlist} className="glass-surface p-md rounded-xl space-y-sm">
@@ -2090,7 +2315,7 @@ function WatchlistView({ watchlist, watchlistForm, setWatchlistForm, onSaveWatch
                 <div
                   key={item.id}
                   className="p-md bg-surface-dim rounded-xl border border-outline-variant/40 flex items-center justify-between cursor-pointer hover:border-primary/60 transition-colors"
-                  onClick={() => setChartSymbol(item.symbol)}
+                  onClick={() => onOpenSnowflake(item.symbol)}
                 >
                   <div>
                     <p className="font-bold text-base text-primary">{item.symbol}</p>
