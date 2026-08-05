@@ -24,7 +24,7 @@ class PortfolioApiIntegrationTest {
     @Autowired
     private ObjectMapper objectMapper;
 
-
+    // Execute an end-to-end API test by creating a portfolio and verifying it can be retrieved using the generated JWT token.
     // Verify that protected portfolio endpoints cannot be accessed without authentication.
     @Test
     void registrationIssuesTokenAndTokenSecuresPortfolioCrud() throws Exception {
