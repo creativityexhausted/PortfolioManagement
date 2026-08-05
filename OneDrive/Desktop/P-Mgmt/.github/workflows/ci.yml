@@ -3,12 +3,11 @@ name: Portfolio Management CI
 on:
   push:
     branches:
-      - feature/glass-ui
+      - feature/glass-ui-github-actions
 
   pull_request:
     branches:
-      - feature/glass-ui
-
+      - feature/glass-ui-github-actions
 jobs:
 
   backend:
