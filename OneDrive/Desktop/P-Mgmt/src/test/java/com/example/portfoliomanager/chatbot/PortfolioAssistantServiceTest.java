@@ -25,6 +25,7 @@ class PortfolioAssistantServiceTest {
         groqClient = mock(GroqChatClient.class);
         service = new PortfolioAssistantService(contextService, groqClient);
 
+        // Mock the AI model and portfolio context used across all test cases.
         when(groqClient.model()).thenReturn("llama-3.1-8b-instant");
         when(contextService.build(any())).thenReturn(new PortfolioAssistantContextService.PortfolioAssistantContext(
                 "ctx", "Overall performance is +100.00 (5.00%).", "all portfolios"));
@@ -44,6 +45,7 @@ class PortfolioAssistantServiceTest {
 
         ChatAssistantResponse response = service.answer("demo", new ChatAssistantRequest("How is my portfolio doing?", null));
 
+        // If the AI provider is unavailable, the service should return a safe fallback summary.
         assertThat(response.answer()).contains("could not reach the AI provider");
         assertThat(response.answer()).contains("Overall performance");
     }

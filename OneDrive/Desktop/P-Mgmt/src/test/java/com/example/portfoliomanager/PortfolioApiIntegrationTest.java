@@ -24,11 +24,14 @@ class PortfolioApiIntegrationTest {
     @Autowired
     private ObjectMapper objectMapper;
 
+
+    // Verify that protected portfolio endpoints cannot be accessed without authentication.
     @Test
     void registrationIssuesTokenAndTokenSecuresPortfolioCrud() throws Exception {
         mockMvc.perform(get("/api/portfolios"))
                 .andExpect(status().isUnauthorized());
 
+        // Register a new user and extract the issued JWT token for authenticated requests.
         String authJson = mockMvc.perform(post("/api/auth/register")
                         .contentType(MediaType.APPLICATION_JSON)
                         .content("""
@@ -46,7 +49,9 @@ class PortfolioApiIntegrationTest {
 
         JsonNode response = objectMapper.readTree(authJson);
         String token = response.get("token").asText();
+        
 
+        // Use the JWT token to create and retrieve a portfolio, confirming end-to-end authorization and CRUD functionality.
         mockMvc.perform(post("/api/portfolios")
                         .header("Authorization", "Bearer " + token)
                         .contentType(MediaType.APPLICATION_JSON)
