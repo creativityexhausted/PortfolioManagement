@@ -12,6 +12,8 @@ import javax.crypto.SecretKey;
 import java.time.Instant;
 import java.util.Date;
 
+//Service responsible for generating, validating, and parsing JSON Web Tokens (JWT) used for authentication.
+
 @Service
 public class JwtService {
 
