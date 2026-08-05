@@ -2034,6 +2034,82 @@ function StockChartModal({ symbol, onClose }) {
 }
 
 /* ==========================================================================
+   STOCK NOTES (simple per-symbol scratchpad, persisted in localStorage)
+   ========================================================================== */
+
+const NOTES_STORAGE_KEY = "pm_stock_notes";
+
+function loadAllNotes() {
+  try {
+    return JSON.parse(localStorage.getItem(NOTES_STORAGE_KEY) || "{}");
+  } catch {
+    return {};
+  }
+}
+
+function StockNotes({ symbol }) {
+  const [text, setText] = useState("");
+  const [savedAt, setSavedAt] = useState(null);
+  const saveTimer = useRef(null);
+
+  // Load this symbol's saved note whenever the symbol changes.
+  useEffect(() => {
+    const all = loadAllNotes();
+    const entry = all[symbol];
+    setText(entry?.text || "");
+    setSavedAt(entry?.savedAt || null);
+  }, [symbol]);
+
+  const persist = (value) => {
+    const all = loadAllNotes();
+    const now = new Date().toISOString();
+    if (value.trim()) {
+      all[symbol] = { text: value, savedAt: now };
+    } else {
+      delete all[symbol]; // don't clutter storage with empty notes
+    }
+    localStorage.setItem(NOTES_STORAGE_KEY, JSON.stringify(all));
+    setSavedAt(value.trim() ? now : null);
+  };
+
+  // Debounced auto-save: writes to localStorage 600ms after the user stops typing,
+  // so we're not hitting localStorage on every keystroke.
+  const handleChange = (e) => {
+    const value = e.target.value;
+    setText(value);
+    if (saveTimer.current) clearTimeout(saveTimer.current);
+    saveTimer.current = setTimeout(() => persist(value), 600);
+  };
+
+  useEffect(() => {
+    return () => {
+      if (saveTimer.current) clearTimeout(saveTimer.current);
+    };
+  }, []);
+
+  return (
+    <div className="glass-surface p-lg rounded-xl space-y-sm">
+      <div className="flex items-center justify-between">
+        <h3 className="font-bold text-on-surface">Notes on {symbol}</h3>
+        <span className="text-[11px] text-on-surface-variant">
+          {savedAt ? `Saved ${formatDateTime(savedAt)}` : "Not saved yet"}
+        </span>
+      </div>
+      <textarea
+        value={text}
+        onChange={handleChange}
+        placeholder={`Jot down your thoughts on ${symbol} — thesis, risks, price targets, reminders...`}
+        rows={5}
+        className="w-full resize-y bg-surface-dim border border-outline-variant/60 rounded-lg p-sm text-body-sm text-on-surface placeholder:text-on-surface-variant/60 focus:outline-none focus:ring-1 focus:ring-primary"
+      />
+      <p className="text-[11px] text-on-surface-variant">
+        Saved automatically on this device only — not synced to your account.
+      </p>
+    </div>
+  );
+}
+
+/* ==========================================================================
    SNOWFLAKE FULL-PAGE DETAIL (chart + fundamentals score, standalone microservice)
    ========================================================================== */
 
@@ -2137,7 +2213,8 @@ function SnowflakeDetailPage({ symbol, onClose }) {
 
       {/* BODY: chart + snowflake side-by-side */}
       <div className="flex-1 p-lg grid grid-cols-1 lg:grid-cols-2 gap-gutter items-start">
-        {/* PRICE CHART */}
+        {/* PRICE CHART + NOTES (stacked in the same column) */}
+        <div className="space-y-gutter">
         <div className="glass-surface p-lg rounded-xl space-y-md">
           <div className="flex items-center justify-between">
             <h3 className="font-bold text-on-surface">Price Chart</h3>
@@ -2190,6 +2267,10 @@ function SnowflakeDetailPage({ symbol, onClose }) {
               </ResponsiveContainer>
             )}
           </div>
+        </div>
+
+        {/* NOTES - simple per-symbol scratchpad, saved locally in the browser */}
+        <StockNotes symbol={symbol} />
         </div>
 
         {/* SNOWFLAKE FUNDAMENTALS SCORE */}
