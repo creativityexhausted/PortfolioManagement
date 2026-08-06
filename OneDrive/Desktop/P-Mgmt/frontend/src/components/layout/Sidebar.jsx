@@ -1,6 +1,5 @@
 import { AnimatePresence, motion } from "framer-motion";
 import {
-  Bot,
   ClipboardList,
   Flame,
   LayoutDashboard,
@@ -21,6 +20,7 @@ import { NavLink } from "react-router-dom";
 import { useMemo } from "react";
 import { formatDateTime } from "../../utils/formatters";
 import { AtlasLogo } from "../common/AtlasLogo";
+import { TARSIcon } from "../common/TARSIcon";
 
 export const Sidebar = ({
   sessions = [],
@@ -115,7 +115,7 @@ export const Sidebar = ({
                 title="Ask AI Assistant"
                 className="flex w-full items-center justify-center gap-2 rounded-xl bg-primary py-2.5 px-4 font-bold text-on-primary shadow-[0_4px_16px_rgba(74,222,128,0.25)] transition-all hover:brightness-110 hover:shadow-[0_6px_20px_rgba(74,222,128,0.35)] active:scale-95"
               >
-                <Bot className="h-4 w-4 shrink-0" />
+                <TARSIcon className="h-4 w-4 shrink-0" />
                 {!rail && <span className="leading-none">Ask TARS</span>}
               </button>
             </div>

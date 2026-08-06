@@ -5,6 +5,7 @@ import ReactMarkdown from "react-markdown";
 import { Prism as SyntaxHighlighter } from "react-syntax-highlighter";
 import { atomDark } from "react-syntax-highlighter/dist/esm/styles/prism";
 import { formatDateTime } from "../../utils/formatters";
+import { TARSIcon } from "../common/TARSIcon";
 
 const TICKER_REGEX = /\b[A-Z]{2,5}\b/g;
 
@@ -36,8 +37,8 @@ const MessageBubbleComp = ({ message, onCopy, onFeedback }) => {
       className={`flex gap-3 ${isUser ? "justify-end" : "justify-start"}`}
     >
       {!isUser && (
-        <div className="grid h-9 w-9 place-items-center rounded-full border border-cyan-300/30 bg-cyan-500/10 text-cyan-200">
-          <Bot className="h-4 w-4" />
+        <div className="grid h-9 w-9 place-items-center rounded-lg border border-cyan-300/30 bg-cyan-500/10 text-cyan-200">
+          <TARSIcon className="h-5 w-5" />
         </div>
       )}
 

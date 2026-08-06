@@ -1,5 +1,6 @@
 import { AnimatePresence, motion } from "framer-motion";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { TARSIcon } from "./components/common/TARSIcon";
 import {
   ArrowDownRight,
   ArrowUpRight,
@@ -721,8 +722,8 @@ export default function App() {
             >
               <div className="flex items-center justify-between border-b border-outline-variant/50 pb-sm mb-sm">
                 <div className="flex items-center gap-2">
-                  <div className="flex h-8 w-8 items-center justify-center rounded-full bg-primary/20 text-primary">
-                    <Bot className="h-4 w-4" />
+                  <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-primary/20 text-primary">
+                    <TARSIcon className="h-5 w-5" />
                   </div>
                   <div>
                     <h3 className="font-bold text-on-surface">TARS</h3>
