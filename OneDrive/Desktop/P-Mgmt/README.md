@@ -171,3 +171,38 @@ mvn test
 ```
 
 Tests use an in-memory H2 database in MySQL compatibility mode and do not call external APIs.
+
+## Testing Instructions (Docs)
+
+Use the scripts and reports in the docs folder for API validation and test reporting.
+
+### Run API test script
+
+From the project root:
+
+```powershell
+./docs/run-api-tests.ps1
+```
+
+### Generate API report
+
+```powershell
+./docs/generate-api-report.ps1
+```
+
+### Generate JUnit and Mockito report
+
+```powershell
+./docs/generate-junit-mockito-report.ps1
+```
+
+### Reference docs and outputs
+
+- API test output JSON: [docs/api-test-results.json](docs/api-test-results.json)
+- API test summary: [docs/test-result.md](docs/test-result.md)
+- Swagger validation report: [docs/Swagger-API-result.md](docs/Swagger-API-result.md)
+- JUnit and Mockito report: [docs/JUNIT_MOCKITO_TEST_REPORT.md](docs/JUNIT_MOCKITO_TEST_REPORT.md)
+- API usage guide: [docs/API_USAGE_GUIDE.md](docs/API_USAGE_GUIDE.md)
+- JWT auth flow guide: [docs/JWT_AUTHENTICATION_FLOW.md](docs/JWT_AUTHENTICATION_FLOW.md)
+- Architecture and workflow diagrams: [docs/ARCHITECTURE_AND_WORKFLOW_DIAGRAMS.md](docs/ARCHITECTURE_AND_WORKFLOW_DIAGRAMS.md)
+- Database schema documentation: [docs/DATABASE_SCHEMA_DOCUMENTATION.md](docs/DATABASE_SCHEMA_DOCUMENTATION.md)
