@@ -101,4 +101,8 @@ export const portfolioApi = {
     const { data } = await apiClient.get("/api/market/indices");
     return data;
   },
+  optimizePortfolio: async (portfolioId, payload) => {
+    const { data } = await apiClient.post(`/api/portfolios/${portfolioId}/optimize`, payload);
+    return data;
+  },
 };

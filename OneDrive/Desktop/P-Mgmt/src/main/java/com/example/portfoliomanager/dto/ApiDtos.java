@@ -301,4 +301,33 @@ public final class ApiDtos {
             LocalDateTime generatedAt
     ) {
     }
+
+    @Schema(description = "Payload to request Quantum Portfolio Optimization")
+    public record QuantOptimizationRequest(
+            @Schema(description = "List of ticker symbols to consider", example = "[\"AAPL\", \"MSFT\", \"GOOGL\"]")
+            List<String> assets,
+            @Schema(description = "Number of assets to select", example = "2")
+            int budget,
+            @Schema(description = "Risk tolerance factor (higher means more risk-averse)", example = "0.5")
+            double riskFactor
+    ) {
+    }
+
+    @Schema(description = "Quantum Portfolio Optimization response")
+    public record QuantOptimizationResponse(
+            @Schema(description = "List of ticker symbols considered")
+            List<String> assets,
+            @Schema(description = "Binary selection string (1 = included, 0 = excluded)")
+            List<Integer> optimalSelection,
+            @Schema(description = "Expected return of the optimal portfolio")
+            double expectedReturn,
+            @Schema(description = "Calculated risk (variance) of the optimal portfolio")
+            double risk,
+            @Schema(description = "Final objective function value")
+            double fval,
+            @Schema(description = "Status of the optimization", example = "SUCCESS")
+            String status
+    ) {
+    }
 }
+

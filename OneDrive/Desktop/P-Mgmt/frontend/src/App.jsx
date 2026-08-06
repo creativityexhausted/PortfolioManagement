@@ -54,6 +54,8 @@ import { TopBar } from "./components/layout/TopBar";
 import { AuthPanel } from "./components/common/AuthPanel";
 import { useToast } from "./components/common/ToastProvider";
 import { SnowflakeChart } from "./components/portfolio/SnowflakeChart";
+import { QuantLabView } from "./components/portfolio/QuantLabView";
+
 
 const USERNAME_KEY = "pm_username";
 
@@ -698,8 +700,8 @@ export default function App() {
               element={<SettingsView username={username} onLogout={onLogout} />}
             />
 
-            {/* QUANT LAB VIEW — placeholder */}
-            <Route path="/quant-lab" element={<div className="h-full" />} />
+            {/* QUANT LAB VIEW */}
+            <Route path="/quant-lab" element={<QuantLabView portfolioId={selectedPortfolioId} holdings={holdings} />} />
 
             <Route path="*" element={<Navigate to="/" replace />} />
           </Routes>

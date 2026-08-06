@@ -119,4 +119,22 @@ public class PortfolioController {
             @PathVariable Long id) {
         service.delete(id);
     }
+
+    @PostMapping("/{id}/optimize")
+    @Operation(
+            summary = "Quantum optimize portfolio",
+            description = "Optimizes a portfolio using QAOA quantum algorithm.")
+    @ApiResponses({
+            @ApiResponse(responseCode = "200", description = "Optimization successful"),
+            @ApiResponse(responseCode = "400", description = "Invalid request payload",
+                    content = @Content(schema = @Schema(implementation = ApiError.class))),
+            @ApiResponse(responseCode = "500", description = "Internal server error",
+                    content = @Content(schema = @Schema(implementation = ApiError.class)))
+    })
+    public com.example.portfoliomanager.dto.ApiDtos.QuantOptimizationResponse optimize(
+            @Parameter(description = "Portfolio ID", example = "1", required = true)
+            @PathVariable Long id,
+            @Valid @RequestBody com.example.portfoliomanager.dto.ApiDtos.QuantOptimizationRequest request) {
+        return service.optimizePortfolio(id, request);
+    }
 }

@@ -82,4 +82,20 @@ public class PortfolioService {
         return new PortfolioResponse(portfolio.getId(), portfolio.getName(), portfolio.getDescription(),
                 portfolio.getCreatedAt(), portfolio.getUpdatedAt());
     }
+
+    public com.example.portfoliomanager.dto.ApiDtos.QuantOptimizationResponse optimizePortfolio(Long id, com.example.portfoliomanager.dto.ApiDtos.QuantOptimizationRequest request) {
+        // Ensure user owns the portfolio before allowing optimization
+        getEntity(id);
+        
+        org.springframework.web.client.RestTemplate restTemplate = new org.springframework.web.client.RestTemplate();
+        org.springframework.http.HttpHeaders headers = new org.springframework.http.HttpHeaders();
+        headers.setContentType(org.springframework.http.MediaType.APPLICATION_JSON);
+        
+        org.springframework.http.HttpEntity<com.example.portfoliomanager.dto.ApiDtos.QuantOptimizationRequest> entity = new org.springframework.http.HttpEntity<>(request, headers);
+        
+        String pythonServiceUrl = "http://localhost:5001/api/optimize";
+        org.springframework.http.ResponseEntity<com.example.portfoliomanager.dto.ApiDtos.QuantOptimizationResponse> response = restTemplate.postForEntity(pythonServiceUrl, entity, com.example.portfoliomanager.dto.ApiDtos.QuantOptimizationResponse.class);
+        
+        return response.getBody();
+    }
 }
