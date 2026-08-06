@@ -172,7 +172,7 @@ mvn test
 
 Tests use an in-memory H2 database in MySQL compatibility mode and do not call external APIs.
 
-## Testing Instructions (Docs)
+## Testing Instructions
 
 Use the scripts and reports in the docs folder for API validation and test reporting.
 
