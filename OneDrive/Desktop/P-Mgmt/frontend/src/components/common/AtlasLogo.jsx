@@ -1,10 +1,10 @@
 /**
- * TARS brand mark — a faceted, upward-pointing arrow/peak glyph.
+ * Atlas brand mark — a faceted, upward-pointing arrow/peak glyph.
  * Renders as a single-color SVG (uses `currentColor`) so it can be recolored
  * via the parent's `text-*` className, and an optional dark rounded "app icon"
  * container variant for use in nav bars / favicons.
  */
-export function TARSMark({ className = "h-6 w-6" }) {
+export function AtlasMark({ className = "h-6 w-6" }) {
   return (
     <svg
       viewBox="0 0 64 64"
@@ -25,15 +25,15 @@ export function TARSMark({ className = "h-6 w-6" }) {
   );
 }
 
-export function TARSLogo({ iconClassName = "h-5 w-5", boxClassName = "h-9 w-9", showBox = true }) {
-  if (!showBox) return <TARSMark className={iconClassName} />;
+export function AtlasLogo({ iconClassName = "h-5 w-5", boxClassName = "h-9 w-9", showBox = true }) {
+  if (!showBox) return <AtlasMark className={iconClassName} />;
   return (
     <div
       className={`flex items-center justify-center rounded-xl bg-gradient-to-b from-[#173327] to-[#0f1f18] border border-white/10 shadow-inner text-primary ${boxClassName}`}
     >
-      <TARSMark className={iconClassName} />
+      <AtlasMark className={iconClassName} />
     </div>
   );
 }
 
-export default TARSLogo;
+export default AtlasLogo;

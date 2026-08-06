@@ -725,7 +725,7 @@ export default function App() {
                     <Bot className="h-4 w-4" />
                   </div>
                   <div>
-                    <h3 className="font-bold text-on-surface">ProTrader AI Assistant</h3>
+                    <h3 className="font-bold text-on-surface">TARS</h3>
                     <p className="text-[11px] text-on-surface-variant">Powered by Groq LLM & Yahoo Quotes</p>
                   </div>
                 </div>
