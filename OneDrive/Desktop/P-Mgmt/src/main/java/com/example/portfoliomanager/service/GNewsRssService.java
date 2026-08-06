@@ -57,7 +57,7 @@ public class GNewsRssService {
 
             HttpRequest request = HttpRequest.newBuilder(uri)
                     .timeout(Duration.ofSeconds(10))
-                    .header("User-Agent", "Mozilla/5.0 (compatible; AtlasPortfolioManager/1.0)")
+                    .header("User-Agent", "Mozilla/5.0 (compatible; TARSPortfolioManager/1.0)")
                     .GET()
                     .build();
 

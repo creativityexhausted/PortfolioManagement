@@ -20,7 +20,7 @@ import {
 import { NavLink } from "react-router-dom";
 import { useMemo } from "react";
 import { formatDateTime } from "../../utils/formatters";
-import { AtlasLogo } from "../common/AtlasLogo";
+import { TARSLogo } from "../common/AtlasLogo";
 
 export const Sidebar = ({
   sessions = [],
@@ -71,11 +71,11 @@ export const Sidebar = ({
             <div className="mb-md px-sm">
               <div className={`flex items-center ${rail ? "flex-col gap-sm" : "justify-between"}`}>
                 <div className={`flex items-center gap-2.5 ${rail ? "flex-col" : ""}`}>
-                  <AtlasLogo iconClassName="h-5 w-5" boxClassName="h-9 w-9" />
+                  <TARSLogo iconClassName="h-5 w-5" boxClassName="h-9 w-9" />
                   {!rail && (
                     <div>
                       <h1 className="font-headline-md text-xl font-bold tracking-tight text-on-surface">
-                        Atlas
+                        TARS
                       </h1>
                       <p className="font-label-caps text-[10px] text-on-surface-variant opacity-70 -mt-0.5">
                         Premium Account
@@ -116,7 +116,7 @@ export const Sidebar = ({
                 className="flex w-full items-center justify-center gap-2 rounded-xl bg-primary py-2.5 px-4 font-bold text-on-primary shadow-[0_4px_16px_rgba(74,222,128,0.25)] transition-all hover:brightness-110 hover:shadow-[0_6px_20px_rgba(74,222,128,0.35)] active:scale-95"
               >
                 <Bot className="h-4 w-4 shrink-0" />
-                {!rail && <span className="leading-none">Ask AI Assistant</span>}
+                {!rail && <span className="leading-none">Ask TARS</span>}
               </button>
             </div>
 
@@ -182,7 +182,7 @@ export const Sidebar = ({
                 <div className="glass-panel p-sm rounded-2xl">
                   <div className="flex items-center gap-2 mb-2">
                     <Flame className="h-4 w-4 text-primary" />
-                    <span className="text-xs font-bold text-on-surface">Atlas Plus</span>
+                    <span className="text-xs font-bold text-on-surface">TARS Plus</span>
                   </div>
                   <button
                     type="button"

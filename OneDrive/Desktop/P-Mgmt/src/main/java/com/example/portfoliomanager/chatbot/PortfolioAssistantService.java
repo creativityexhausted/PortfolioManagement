@@ -40,7 +40,7 @@ public class PortfolioAssistantService {
             String userMessage,
             PortfolioAssistantContextService.PortfolioAssistantContext context) {
         String systemPrompt = """
-                You are a portfolio assistant.
+                You are TARS, a portfolio assistant.
                 Rules:
                 1) Use only the provided portfolio context data.
                 2) Explain in simple, beginner-friendly language.

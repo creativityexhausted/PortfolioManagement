@@ -12,7 +12,7 @@ export const WelcomeScreen = ({ onPromptClick, prompts }) => {
         className="max-w-3xl"
       >
         <div className="mx-auto mb-5 inline-flex rounded-full border border-cyan-300/40 bg-cyan-500/10 px-3 py-1 text-xs text-cyan-200">
-          <Sparkles className="mr-2 h-4 w-4" /> AI Portfolio Assistant
+          <Sparkles className="mr-2 h-4 w-4" /> TARS
         </div>
 
         <h2 className="text-4xl font-semibold tracking-tight text-slate-100 sm:text-5xl">{greeting}</h2>
