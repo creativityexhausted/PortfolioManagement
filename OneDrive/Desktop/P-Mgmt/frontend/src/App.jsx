@@ -71,6 +71,7 @@ const sectionTitles = {
   "/transactions": "Transactions",
   "/watchlist": "Watchlist",
   "/market": "Market & News",
+  "/quant-lab": "Quant Lab",
   "/settings": "Settings",
 };
 
@@ -696,6 +697,9 @@ export default function App() {
               path="/settings"
               element={<SettingsView username={username} onLogout={onLogout} />}
             />
+
+            {/* QUANT LAB VIEW — placeholder */}
+            <Route path="/quant-lab" element={<div className="h-full" />} />
 
             <Route path="*" element={<Navigate to="/" replace />} />
           </Routes>

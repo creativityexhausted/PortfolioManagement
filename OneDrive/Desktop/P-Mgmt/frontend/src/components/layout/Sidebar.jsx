@@ -1,6 +1,7 @@
 import { AnimatePresence, motion } from "framer-motion";
 import {
   ClipboardList,
+  FlaskConical,
   Flame,
   LayoutDashboard,
   LogOut,
@@ -39,6 +40,7 @@ export const Sidebar = ({
       { to: "/watchlist", label: "Watchlist", icon: Star },
       { to: "/transactions", label: "Transactions", icon: ClipboardList },
       { to: "/market", label: "Market & News", icon: Newspaper },
+      { to: "/quant-lab", label: "Quant Lab", icon: FlaskConical },
       { to: "/settings", label: "Settings", icon: Settings },
     ],
     [],
