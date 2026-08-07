@@ -1,0 +1,53 @@
+name: Portfolio Management CI
+
+on:
+  push:
+    branches:
+      - feature/glass-ui-github-actions
+
+  pull_request:
+    branches:
+      - feature/glass-ui-github-actions
+jobs:
+
+  backend:
+
+    runs-on: ubuntu-latest
+
+    steps:
+
+      - name: Checkout Repository
+        uses: actions/checkout@v4
+
+      - name: Setup Java
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: 21
+
+      - name: Build Backend
+        run: mvn clean verify
+
+  frontend:
+
+    runs-on: ubuntu-latest
+
+    defaults:
+      run:
+        working-directory: frontend
+
+    steps:
+
+      - name: Checkout Repository
+        uses: actions/checkout@v4
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+
+      - name: Install Packages
+        run: npm install
+
+      - name: Build Frontend
+        run: npm run build
